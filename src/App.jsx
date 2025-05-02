@@ -18,10 +18,15 @@ import RegisterPage from './pages/RegisterPage';
 import EventsPage from './pages/EventsPage';
 import EventDetailPage from './pages/EventDetailPage';
 import VenuesPage from './pages/VenuesPage';
+import VenueDetailPage from './pages/VenueDetailPage';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import NotFoundPage from './pages/NotFoundPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import CreateEventPage from './pages/CreateEventPage';
+import MyEventsPage from './pages/MyEventsPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Auth guard
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -40,6 +45,7 @@ function App() {
                                 <Route path="/events" element={<EventsPage />} />
                                 <Route path="/events/:id" element={<EventDetailPage />} />
                                 <Route path="/venues" element={<VenuesPage />} />
+                                <Route path="/venues/:id" element={<VenueDetailPage />} />
                                 <Route path="/leaderboard" element={<LeaderboardPage />} />
                             </Route>
 
@@ -47,6 +53,7 @@ function App() {
                             <Route element={<AuthLayout />}>
                                 <Route path="/login" element={<LoginPage />} />
                                 <Route path="/register" element={<RegisterPage />} />
+                                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                             </Route>
 
                             {/* Protected routes */}
@@ -54,6 +61,9 @@ function App() {
                                 <Route element={<MainLayout />}>
                                     <Route path="/dashboard" element={<DashboardPage />} />
                                     <Route path="/profile" element={<ProfilePage />} />
+                                    <Route path="/settings" element={<SettingsPage />} />
+                                    <Route path="/events/create" element={<CreateEventPage />} />
+                                    <Route path="/events/my-events" element={<MyEventsPage />} />
                                 </Route>
                             </Route>
 
