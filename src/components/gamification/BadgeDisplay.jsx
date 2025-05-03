@@ -1,58 +1,77 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import gamificationService from '../../services/gamificationService';
 import Loader from '../common/Loader';
 
-const BadgeDisplay = ({ userId, limit, showRecent = false }) => {
+/**
+ * BadgeDisplay Component
+ * Displays user badges with optional filtering and layout options
+ */
+const BadgeDisplay = ({
+                          userId,
+                          limit = 0,
+                          showRecent = false,
+                          layout = 'grid',
+                          emptyMessage = 'No badges earned yet. Participate in events to earn badges!',
+                          className = '',
+                      }) => {
     const [badges, setBadges] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchBadges = async () => {
-            if (!userId) return;
-
             try {
                 setLoading(true);
-                let badgeData;
+                setError(null);
+
+                // Fetch badges
+                const response = showRecent
+                    ? await gamificationService.getRecentUserBadges(userId, limit)
+                    : await gamificationService.getUserBadges(userId);
+
+                // Process and sort badges
+                let badgeData = response.data || [];
 
                 if (showRecent) {
-                    badgeData = await gamificationService.getRecentUserBadges(userId, limit || 5);
+                    // For recent badges, they're already sorted by date earned
+                    badgeData = badgeData.slice(0, limit > 0 ? limit : undefined);
                 } else {
-                    badgeData = await gamificationService.getUserBadges(userId);
+                    // For all badges, sort by earnedDate (recent first)
+                    badgeData = [...badgeData].sort((a, b) => {
+                        if (!a.earnedDate) return 1;
+                        if (!b.earnedDate) return -1;
+                        return new Date(b.earnedDate) - new Date(a.earnedDate);
+                    });
+
+                    // Apply limit if specified
+                    if (limit > 0) {
+                        badgeData = badgeData.slice(0, limit);
+                    }
                 }
 
-                setBadges(badgeData.data);
-            } catch (error) {
-                console.error('Error fetching badges:', error);
+                setBadges(badgeData);
+            } catch (err) {
+                console.error('Error fetching badges:', err);
+                setError(err.message || 'Failed to fetch badges');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchBadges();
+        if (userId) {
+            fetchBadges();
+        }
     }, [userId, limit, showRecent]);
 
-    // Organize badges by category
-    const getBadgesByCategory = () => {
-        const categories = {};
-
-        badges.forEach(badge => {
-            if (!categories[badge.category]) {
-                categories[badge.category] = [];
-            }
-            categories[badge.category].push(badge);
-        });
-
-        return categories;
-    };
-
-    // Motion variants for animations
+    // Animation variants
     const containerVariants = {
         hidden: { opacity: 0 },
         visible: {
             opacity: 1,
             transition: {
-                staggerChildren: 0.1
+                staggerChildren: 0.05
             }
         }
     };
@@ -63,114 +82,116 @@ const BadgeDisplay = ({ userId, limit, showRecent = false }) => {
             scale: 1,
             opacity: 1,
             transition: {
-                type: "spring",
-                stiffness: 200,
-                damping: 15
+                duration: 0.3
             }
         }
     };
 
     if (loading) {
+        return <Loader size="md" variant="primary" className="my-8" />;
+    }
+
+    if (error) {
         return (
-            <div className="flex justify-center py-8">
-                <Loader size="md" />
+            <div className="text-center text-accent-600 my-4">
+                <p>Error loading badges: {error}</p>
             </div>
         );
     }
 
-    // If showing all badges, group by category
-    if (!showRecent && badges.length > 0) {
-        const badgesByCategory = getBadgesByCategory();
-
+    // If no badges and locked badges aren't shown
+    if (badges.length === 0) {
         return (
-            <div className="space-y-8">
-                {Object.keys(badgesByCategory).map((category) => (
-                    <div key={category}>
-                        <h3 className="text-lg font-medium text-neutral-900 mb-4">{category}</h3>
-                        <motion.div
-                            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
-                            variants={containerVariants}
-                            initial="hidden"
-                            animate="visible"
-                        >
-                            {badgesByCategory[category].map((badge) => (
-                                <motion.div
-                                    key={badge.id}
-                                    className="flex flex-col items-center"
-                                    variants={itemVariants}
-                                >
-                                    <div className={`w-20 h-20 rounded-full ${badge.earned ? 'bg-primary-100' : 'bg-neutral-100'} flex items-center justify-center mb-2 relative ${badge.earned ? '' : 'grayscale opacity-50'}`}>
-                                        <span className="text-3xl">{badge.icon}</span>
-                                        {badge.earned && (
-                                            <div className="absolute -bottom-1 -right-1 bg-success-500 text-white rounded-full w-6 h-6 flex items-center justify-center">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                </svg>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <h4 className="text-sm font-medium text-neutral-900 text-center">{badge.name}</h4>
-                                    <p className="text-xs text-neutral-500 text-center">{badge.description}</p>
-                                    {badge.earned && badge.earnedDate && (
-                                        <p className="text-xs text-primary-600 mt-1">
-                                            Earned {new Date(badge.earnedDate).toLocaleDateString()}
-                                        </p>
-                                    )}
-                                </motion.div>
-                            ))}
-                        </motion.div>
-                    </div>
-                ))}
+            <div className="text-center my-4 p-6 bg-neutral-50 rounded-lg">
+                <div className="text-neutral-500">{emptyMessage}</div>
             </div>
         );
     }
 
-    // For recent badges or no badges
-    return (
-        <>
-            {badges.length > 0 ? (
-                <motion.div
-                    className="grid grid-cols-3 gap-4"
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                >
-                    {badges.map((badge) => (
-                        <motion.div
-                            key={badge.id}
-                            className="flex flex-col items-center"
-                            variants={itemVariants}
-                        >
-                            <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center mb-2 relative">
-                                <span className="text-2xl">{badge.icon}</span>
-                                <div className="absolute -bottom-1 -right-1 bg-success-500 text-white rounded-full w-5 h-5 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <h4 className="text-sm font-medium text-neutral-900 text-center">{badge.name}</h4>
-                            {badge.earnedDate && (
-                                <p className="text-xs text-primary-600 mt-1">
-                                    {new Date(badge.earnedDate).toLocaleDateString()}
-                                </p>
+    // Grid layout
+    if (layout === 'grid') {
+        return (
+            <motion.div
+                className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 ${className}`}
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+            >
+                {badges.map((badge) => (
+                    <motion.div
+                        key={badge.id}
+                        className="flex flex-col items-center text-center p-3 bg-white rounded-lg border border-neutral-200 shadow-sm hover:shadow-md transition-shadow"
+                        variants={itemVariants}
+                    >
+                        <div className="w-16 h-16 mb-3 rounded-full bg-primary-100 flex items-center justify-center">
+                            {badge.iconUrl ? (
+                                <img src={badge.iconUrl} alt={badge.name} className="h-10 w-10" />
+                            ) : (
+                                <span className="text-2xl">{badge.iconEmoji || '🏆'}</span>
                             )}
-                        </motion.div>
-                    ))}
-                </motion.div>
-            ) : (
-                <div className="text-center py-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-neutral-100 mb-4">
-                        <span className="text-2xl">🏅</span>
+                        </div>
+                        <h3 className="font-medium text-neutral-900">{badge.name}</h3>
+                        <p className="text-xs text-neutral-500 mt-1">{badge.description}</p>
+                        {badge.earnedDate && (
+                            <div className="mt-2 text-xs text-success-600 font-medium">
+                                Earned: {new Date(badge.earnedDate).toLocaleDateString()}
+                            </div>
+                        )}
+                    </motion.div>
+                ))}
+            </motion.div>
+        );
+    }
+
+    // List layout
+    return (
+        <motion.div
+            className={`space-y-3 ${className}`}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+        >
+            {badges.map((badge) => (
+                <motion.div
+                    key={badge.id}
+                    className="flex items-center p-3 bg-white rounded-lg border border-neutral-200 shadow-sm hover:shadow-md transition-shadow"
+                    variants={itemVariants}
+                >
+                    <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mr-4 flex-shrink-0">
+                        {badge.iconUrl ? (
+                            <img src={badge.iconUrl} alt={badge.name} className="h-8 w-8" />
+                        ) : (
+                            <span className="text-xl">{badge.iconEmoji || '🏆'}</span>
+                        )}
                     </div>
-                    <h3 className="text-lg font-medium text-neutral-900 mb-2">No badges yet</h3>
-                    <p className="text-neutral-600">
-                        Participate in more events to earn badges!
-                    </p>
-                </div>
-            )}
-        </>
+                    <div className="flex-grow">
+                        <h3 className="font-medium text-neutral-900">{badge.name}</h3>
+                        <p className="text-sm text-neutral-500">{badge.description}</p>
+                    </div>
+                    {badge.earnedDate && (
+                        <div className="text-xs text-success-600 font-medium whitespace-nowrap ml-4">
+                            Earned: {new Date(badge.earnedDate).toLocaleDateString()}
+                        </div>
+                    )}
+                </motion.div>
+            ))}
+        </motion.div>
     );
+};
+
+BadgeDisplay.propTypes = {
+    /** User ID to fetch badges for */
+    userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    /** Maximum number of badges to display (0 for all) */
+    limit: PropTypes.number,
+    /** Whether to show only recently earned badges */
+    showRecent: PropTypes.bool,
+    /** Display layout - grid or list */
+    layout: PropTypes.oneOf(['grid', 'list']),
+    /** Message to display when no badges are available */
+    emptyMessage: PropTypes.string,
+    /** Additional CSS classes */
+    className: PropTypes.string
 };
 
 export default BadgeDisplay;
