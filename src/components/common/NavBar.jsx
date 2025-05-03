@@ -15,6 +15,9 @@ const NavBar = () => {
     const location = useLocation();
     const [scrolled, setScrolled] = useState(false);
 
+    // Check if current page is home page
+    const isHomePage = location.pathname === '/';
+
     // Navigation links
     const navigation = [
         { name: 'Home', to: '/', authenticated: false },
@@ -54,13 +57,20 @@ const NavBar = () => {
         return location.pathname.startsWith(path);
     };
 
+    // Determine text color based on home page status and scroll position
+    const textColorClass = (isHomePage && !scrolled) ? 'text-white' : 'text-neutral-600';
+    const hoverTextColorClass = (isHomePage && !scrolled) ? 'hover:text-gray-200' : 'hover:text-neutral-800';
+    const activeTextColorClass = (isHomePage && !scrolled) ? 'text-white' : 'text-primary-600';
+    const logoBtnTextColorClass = (isHomePage && !scrolled) ? 'text-white' : 'text-primary-600';
+    const mobileBgClass = 'bg-white';
+
     return (
         <Disclosure
             as="nav"
             className={`fixed w-full z-40 transition-all duration-300 ${
                 scrolled
                     ? 'bg-white shadow-md'
-                    : 'bg-transparent'
+                    : isHomePage ? 'bg-transparent' : 'bg-white'
             }`}
         >
             {({ open }) => (
@@ -71,7 +81,7 @@ const NavBar = () => {
                                 <div className="flex flex-shrink-0 items-center">
                                     <Link
                                         to="/"
-                                        className="flex items-center space-x-2 text-primary-600 hover:text-primary-700"
+                                        className={`flex items-center space-x-2 ${logoBtnTextColorClass} hover:${hoverTextColorClass}`}
                                     >
                                         <img
                                             className="h-8 w-auto"
@@ -91,8 +101,8 @@ const NavBar = () => {
                                                 className={({ isActive }) =>
                                                     `inline-flex items-center px-1 pt-1 text-sm font-medium ${
                                                         isActive
-                                                            ? 'text-primary-600 border-b-2 border-primary-500'
-                                                            : 'text-neutral-600 hover:text-neutral-800 hover:border-b-2 hover:border-neutral-300'
+                                                            ? `${activeTextColorClass} border-b-2 border-primary-500`
+                                                            : `${textColorClass} ${hoverTextColorClass} hover:border-b-2 hover:border-neutral-300`
                                                     }`
                                                 }
                                             >
@@ -108,7 +118,7 @@ const NavBar = () => {
                                         {/* Notification bell */}
                                         <button
                                             type="button"
-                                            className="relative rounded-full p-1 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                                            className={`relative rounded-full p-1 ${textColorClass} ${hoverTextColorClass} hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2`}
                                         >
                                             <span className="absolute -inset-1.5" />
                                             <span className="sr-only">View notifications</span>
@@ -132,12 +142,12 @@ const NavBar = () => {
                                                         />
                                                     ) : (
                                                         <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700">
-                              <span className="font-medium">
-                                {currentUser?.firstName?.[0]}{currentUser?.lastName?.[0]}
-                              </span>
+                                                            <span className="font-medium">
+                                                                {currentUser?.firstName?.[0]}{currentUser?.lastName?.[0]}
+                                                            </span>
                                                         </div>
                                                     )}
-                                                    <span className="ml-2 text-neutral-700">{currentUser?.firstName}</span>
+                                                    <span className={`ml-2 ${textColorClass}`}>{currentUser?.firstName}</span>
                                                 </Menu.Button>
                                             </div>
                                             <Transition
@@ -182,7 +192,7 @@ const NavBar = () => {
                                     <div className="flex space-x-4">
                                         <Link
                                             to="/login"
-                                            className="text-neutral-700 hover:text-neutral-900 inline-flex items-center px-3 py-1 text-sm font-medium"
+                                            className={`${textColorClass} ${hoverTextColorClass} inline-flex items-center px-3 py-1 text-sm font-medium`}
                                         >
                                             Log in
                                         </Link>
@@ -198,7 +208,7 @@ const NavBar = () => {
 
                             {/* Mobile menu button */}
                             <div className="flex items-center sm:hidden">
-                                <Disclosure.Button className="relative inline-flex items-center justify-center rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500">
+                                <Disclosure.Button className={`relative inline-flex items-center justify-center rounded-md p-2 ${textColorClass} ${hoverTextColorClass} hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500`}>
                                     <span className="absolute -inset-0.5" />
                                     <span className="sr-only">Open main menu</span>
                                     {open ? (

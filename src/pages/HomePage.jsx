@@ -99,7 +99,7 @@ const HomePage = () => {
                             <img
                                 src="/assets/images/hero-image.svg"
                                 alt="Campus Events Illustration"
-                                className="max-w-full h-auto rounded-xl shadow-2xl"
+                                className="max-w-full h-auto rounded-xl "
                             />
                         </motion.div>
                     </div>
