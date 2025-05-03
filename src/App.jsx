@@ -8,8 +8,8 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 
 // Layouts
-import MainLayout from './components/layouts/MainLayout';
-import AuthLayout from './components/layouts/AuthLayout';
+import MainLayout from './components/layouts/MainLayout.jsx';
+import AuthLayout from './components/layouts/AuthLayout.jsx';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -18,14 +18,14 @@ import RegisterPage from './pages/RegisterPage';
 import EventsPage from './pages/EventsPage';
 import EventDetailPage from './pages/EventDetailPage';
 import VenuesPage from './pages/VenuesPage';
-import VenueDetailPage from './pages/VenueDetailPage';
+import VenueDetailPage from './pages/VenueDetailPage.jsx';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import NotFoundPage from './pages/NotFoundPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import CreateEventPage from './pages/CreateEventPage';
-import MyEventsPage from './pages/MyEventsPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
+import CreateEventPage from './pages/CreateEventPage.jsx';
+import MyEventsPage from './pages/MyEventsPage.jsx';
 import SettingsPage from './pages/SettingsPage';
 
 // Auth guard

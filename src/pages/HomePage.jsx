@@ -76,7 +76,7 @@ const HomePage = () => {
                                 Discover & Join Campus Events
                             </h1>
                             <p className="text-lg md:text-xl opacity-90 mb-8">
-                                Your centralized platform for finding, organizing, and participating in campus activities. Earn rewards, connect with peers, and make the most of your campus experience.
+                                Your centralized platform for finding, organizing, and participating in campus activities.
                             </p>
                             <div className="flex flex-wrap gap-4">
                                 <Link to="/events" className="btn bg-white text-primary-700 hover:bg-neutral-100">
