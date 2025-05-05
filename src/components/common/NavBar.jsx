@@ -9,6 +9,7 @@ import {
     UserCircleIcon
 } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
+import MockApiToggle from '../common/MockApiToggle'; // Import the MockApiToggle component
 
 const NavBar = () => {
     const { isAuthenticated, currentUser, logout } = useAuth();
@@ -113,6 +114,11 @@ const NavBar = () => {
                             </div>
 
                             <div className="hidden sm:ml-6 sm:flex sm:items-center">
+                                {/* Mock API Toggle */}
+                                {isAuthenticated && (
+                                    <MockApiToggle className="mr-4" />
+                                )}
+
                                 {isAuthenticated ? (
                                     <>
                                         {/* Notification bell */}
@@ -246,6 +252,11 @@ const NavBar = () => {
 
                         {isAuthenticated ? (
                             <div className="border-t border-neutral-200 pt-4 pb-3">
+                                {/* Mock API Toggle in mobile menu */}
+                                <div className="px-4 mb-2">
+                                    <MockApiToggle />
+                                </div>
+
                                 <div className="flex items-center px-4">
                                     <div className="flex-shrink-0">
                                         {currentUser?.profilePictureUrl ? (

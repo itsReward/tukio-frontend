@@ -18,7 +18,7 @@ const userService = {
    * @returns {Promise} API response
    */
   getUserById: (id) => {
-    return api.get(`/api/users/${id}`);
+    return api.get(`tukio-user-service/api/users/${id}`);
   },
 
   /**
@@ -26,7 +26,7 @@ const userService = {
    * @returns {Promise} API response
    */
   getCurrentUser: () => {
-    return api.get('/api/users/me');
+    return api.get('tukio-user-service/api/users/me');
   },
 
   /**
@@ -35,7 +35,7 @@ const userService = {
    * @returns {Promise} API response
    */
   getUserProfile: (id) => {
-    return api.get(`/api/users/profile/${id}`);
+    return api.get(`tukio-user-service/api/users/profile/${id}`);
   },
 
   /**
@@ -44,7 +44,7 @@ const userService = {
    * @returns {Promise} API response
    */
   searchUsers: (keyword) => {
-    return api.get(`/api/users/search?keyword=${encodeURIComponent(keyword)}`);
+    return api.get(`tukio-user-service/api/users/search?keyword=${encodeURIComponent(keyword)}`);
   },
 
   /**
@@ -54,7 +54,7 @@ const userService = {
    */
   getUsersByInterests: (interests) => {
     const interestsParam = Array.isArray(interests) ? interests.join(',') : interests;
-    return api.get(`/api/users/interests?interests=${encodeURIComponent(interestsParam)}`);
+    return api.get(`tukio-user-service/api/users/interests?interests=${encodeURIComponent(interestsParam)}`);
   },
 
   /**
@@ -64,7 +64,7 @@ const userService = {
    * @returns {Promise} API response
    */
   updateUser: (id, userData) => {
-    return api.put(`/api/users/${id}`, userData);
+    return api.put(`tukio-user-service/api/users/${id}`, userData);
   },
 
   /**
@@ -74,7 +74,7 @@ const userService = {
    * @returns {Promise} API response
    */
   changePassword: (id, passwordData) => {
-    return api.put(`/api/users/${id}/password`, passwordData);
+    return api.put(`tukio-user-service/api/users/${id}/password`, passwordData);
   },
 
   /**
@@ -84,7 +84,7 @@ const userService = {
    * @returns {Promise} API response
    */
   updateUserInterests: (id, interests) => {
-    return api.put(`/api/users/${id}/interests`, { interests });
+    return api.put(`tukio-user-service/api/users/${id}/interests`, { interests });
   },
 
   /**
@@ -94,7 +94,7 @@ const userService = {
    * @returns {Promise} API response
    */
   addUserRole: (userId, roleName) => {
-    return api.put(`/api/users/${userId}/roles/add/${roleName}`);
+    return api.put(`tukio-user-service/api/users/${userId}/roles/add/${roleName}`);
   },
 
   /**
@@ -104,7 +104,7 @@ const userService = {
    * @returns {Promise} API response
    */
   removeUserRole: (userId, roleName) => {
-    return api.put(`/api/users/${userId}/roles/remove/${roleName}`);
+    return api.put(`tukio-user-service/api/users/${userId}/roles/remove/${roleName}`);
   },
 
   /**
@@ -113,7 +113,7 @@ const userService = {
    * @returns {Promise} API response
    */
   deleteUser: (id) => {
-    return api.delete(`/api/users/${id}`);
+    return api.delete(`tukio-user-service/api/users/${id}`);
   },
 
   /**
@@ -126,7 +126,7 @@ const userService = {
     const formData = new FormData();
     formData.append('image', imageFile);
     
-    return api.post(`/api/users/${userId}/profile-picture`, formData, {
+    return api.post(`tukio-user-service/api/users/${userId}/profile-picture`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -139,7 +139,7 @@ const userService = {
    * @returns {Promise} API response
    */
   getUserRegistrations: (userId) => {
-    return api.get(`/api/event-registrations/user/${userId}`);
+    return api.get(`tukio-user-service/api/event-registrations/user/${userId}`);
   },
 
   /**
@@ -148,7 +148,7 @@ const userService = {
    * @returns {Promise} API response
    */
   getUserUpcomingEvents: (userId) => {
-    return api.get(`/api/event-registrations/user/${userId}/upcoming`);
+    return api.get(`tukio-user-service/api/event-registrations/user/${userId}/upcoming`);
   },
 
   /**
@@ -157,7 +157,7 @@ const userService = {
    * @returns {Promise} API response
    */
   getUserPastEvents: (userId) => {
-    return api.get(`/api/event-registrations/user/${userId}/past`);
+    return api.get(`tukio-user-service/api/event-registrations/user/${userId}/past`);
   },
 
   /**
@@ -169,7 +169,7 @@ const userService = {
    * @returns {Promise} API response
    */
   getPaginatedUsers: (page = 0, size = 10, sort = 'createdAt', direction = 'DESC') => {
-    return api.get(`/api/users?page=${page}&size=${size}&sort=${sort}&direction=${direction}`);
+    return api.get(`tukio-user-service/api/users?page=${page}&size=${size}&sort=${sort}&direction=${direction}`);
   },
 
   /**
@@ -179,7 +179,7 @@ const userService = {
    * @returns {Promise} API response
    */
   findSimilarUsers: (userId, limit = 5) => {
-    return api.get(`/api/preferences/user/${userId}/similar-users?limit=${limit}`);
+    return api.get(`tukio-user-service/api/preferences/user/${userId}/similar-users?limit=${limit}`);
   },
 
   /**
@@ -188,7 +188,7 @@ const userService = {
    * @returns {Promise} API response
    */
   getUserFavoriteCategories: (userId) => {
-    return api.get(`/api/preferences/user/${userId}/categories`);
+    return api.get(`tukio-user-service/api/preferences/user/${userId}/categories`);
   },
 
   /**
@@ -197,7 +197,7 @@ const userService = {
    * @returns {Promise} API response
    */
   getUserPreferencesByTags: (userId) => {
-    return api.get(`/api/preferences/user/${userId}/tags`);
+    return api.get(`tukio-user-service/api/preferences/user/${userId}/tags`);
   }
 };
 

@@ -1,7 +1,7 @@
 import api from './api';
 
 const VENUE_ENDPOINTS = {
-    VENUES: '/api/venues',
+    VENUES: 'tukio-venue-service/api/venues',
 };
 
 class VenueService {

@@ -1,11 +1,11 @@
 import api from './api';
 
 const AUTH_ENDPOINTS = {
-    LOGIN: '/api/auth/login',
-    REGISTER: '/api/auth/register',
-    VALIDATE_TOKEN: '/api/auth/validate',
-    USER: '/api/users',
-    CURRENT_USER: '/api/users/me',
+    LOGIN: 'tukio-user-service/api/auth/login',
+    REGISTER: 'tukio-user-service/api/auth/register',
+    VALIDATE_TOKEN: 'tukio-user-service/api/auth/validate',
+    USER: 'tukio-user-service/api/users',
+    CURRENT_USER: 'tukio-user-service/api/users/me',
 };
 
 class AuthService {
@@ -29,7 +29,11 @@ class AuthService {
     }
 
     async getUserById(userId) {
-        return await api.get(`${AUTH_ENDPOINTS.USER}/${userId}`);
+        return await api.get(`${AUTH_ENDPOINTS.USER}/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
     }
 
     async updateUserProfile(userData) {

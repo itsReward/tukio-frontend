@@ -1,10 +1,10 @@
 import api from './api';
 
 const GAMIFICATION_ENDPOINTS = {
-    GAMIFICATION: '/api/gamification',
-    POINTS: '/api/points',
-    BADGES: '/api/badges',
-    LEADERBOARDS: '/api/leaderboards',
+    GAMIFICATION: 'tukio-gamification-service/api/gamification',
+    POINTS: 'tukio-gamification-service/api/points',
+    BADGES: 'tukio-gamification-service/api/badges',
+    LEADERBOARDS: 'tukio-gamification-service/api/leaderboards',
 };
 
 class GamificationService {

@@ -1,9 +1,9 @@
 import api from './api';
 
 const EVENT_ENDPOINTS = {
-    EVENTS: '/api/events',
-    CATEGORIES: '/api/event-categories',
-    REGISTRATIONS: '/api/event-registrations',
+    EVENTS: 'tukio-events-service/api/events',
+    CATEGORIES: 'tukio-events-service/api/event-categories',
+    REGISTRATIONS: 'tukio-events-service/api/event-registrations',
 };
 
 class EventService {

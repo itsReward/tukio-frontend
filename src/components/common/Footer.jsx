@@ -60,7 +60,7 @@ const Footer = () => {
                     {/* Logo and description */}
                     <div className="col-span-2 md:col-span-1">
                         <Link to="/" className="flex items-center space-x-2 mb-4">
-                            <img src="/assets/images/logo-white.svg" alt="Tukio Logo" className="h-8 w-auto" />
+                            <img src="/assets/images/logo.svg" alt="Tukio Logo" className="h-8 w-auto" />
                             <span className="text-xl font-bold">Tukio</span>
                         </Link>
                         <p className="text-neutral-400 mb-4">
