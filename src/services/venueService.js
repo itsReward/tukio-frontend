@@ -26,7 +26,7 @@ class VenueService {
     }
 
     async findAvailableVenues(request) {
-        return await api.get(`${VENUE_ENDPOINTS.VENUES}/available`, { data: request });
+        return await api.post(`${VENUE_ENDPOINTS.VENUES}/available`, request);
     }
 
     async getVenueSchedule(venueId, startDate, endDate) {

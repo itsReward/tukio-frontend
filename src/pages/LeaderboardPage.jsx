@@ -55,7 +55,7 @@ const LeaderboardPage = () => {
                     } else {
                         // If not in top 20, we need to fetch their specific rank
                         try {
-                            const rankResponse = await gamificationService.getUserRank(currentUser.id, activeTab);
+                            const rankResponse = await gamificationService.getLeaderboardResults('weekly', currentUser.id, 1);
                             setUserRank(rankResponse.data.rank);
                         } catch (error) {
                             console.error('Error fetching user rank:', error);
@@ -275,8 +275,8 @@ const LeaderboardPage = () => {
 
                                     {/* Stats */}
                                     <div className="ml-4 flex flex-col items-end">
-                                        <div className="text-lg font-semibold text-neutral-900">
-                                            {user.points.toLocaleString()}
+                                        <div className="text-lg font-semibold text-neutral-700">
+                                            {user.score ? user.score.toLocaleString() : 0}
                                         </div>
                                         <div className="text-xs text-neutral-500">
                                             points
