@@ -621,7 +621,7 @@ const ProfilePage = () => {
                                             <div key={event.id} className="py-4 flex flex-col sm:flex-row sm:items-center">
                                                 <div className="flex-grow">
                                                     <h3 className="text-lg font-medium text-neutral-900">
-                                                        {event.eventName}
+                                                        {event.title}
                                                     </h3>
                                                     <div className="mt-1 flex flex-wrap items-center text-sm text-neutral-500 gap-x-4 gap-y-1">
                                                         <span className="flex items-center">
@@ -634,7 +634,7 @@ const ProfilePage = () => {
                                                         </span>
                                                         <span className="flex items-center">
                                                             <MapPinIcon className="mr-1 h-4 w-4 flex-shrink-0" />
-                                                            {event.location || 'TBD'}
+                                                            {event.venueName || 'TBD'}
                                                         </span>
                                                     </div>
                                                 </div>

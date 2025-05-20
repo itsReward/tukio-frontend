@@ -150,6 +150,17 @@ const api = {
                 } else if (url.match(/^\/api\/leaderboards\/top\/all-time$/)) {
                     const limit = config.params?.limit || 10;
                     return mockApi.getTopUsersAllTime(limit);
+                } else if (url.startsWith('/api/notifications/me')) {
+                    const page = config.params?.page || 0;
+                    const size = config.params?.size || 10;
+                    return mockNotificationApi.getUserNotifications(page, size);
+                } else if (url.match(/^\/api\/notifications\/\d+$/)) {
+                    const id = url.split('/')[2];
+                    return mockNotificationApi.getNotificationById(id);
+                } else if (url === '/api/notifications/unread-count') {
+                    return mockNotificationApi.getUnreadCount();
+                } else if (url === '/api/notification-preferences') {
+                    return mockNotificationApi.getNotificationPreferences();
                 }
 
                 // Default case - not implemented in mock
@@ -196,6 +207,11 @@ const api = {
                     const eventId = url.split('/')[3];
                     const userId = new URLSearchParams(url.split('?')[1]).get('userId');
                     return mockApi.recordEventSharing(userId, eventId);
+                }else if (url === '/api/notifications') {
+                    return mockNotificationApi.sendNotification(data);
+                } else if (url.match(/^\/api\/notifications\/subscribe\/event\/\d+$/)) {
+                    const eventId = url.split('/')[4];
+                    return mockNotificationApi.subscribeToEvent(eventId);
                 }
 
                 // Default case - not implemented in mock
@@ -218,6 +234,13 @@ const api = {
                 } else if (url.match(/^\/api\/events\/\d+$/)) {
                     const id = url.split('/')[2];
                     return mockApi.updateEvent(id, data);
+                }else if (url.match(/^\/api\/notifications\/\d+\/read$/)) {
+                    const id = url.split('/')[2];
+                    return mockNotificationApi.markAsRead(id);
+                } else if (url === '/api/notifications/mark-all-read') {
+                    return mockNotificationApi.markAllAsRead();
+                } else if (url === '/api/notification-preferences') {
+                    return mockNotificationApi.updatePreferences(data);
                 }
 
                 // Default case - not implemented in mock
@@ -238,6 +261,14 @@ const api = {
                 if (url.match(/^\/api\/events\/\d+$/)) {
                     const id = url.split('/')[2];
                     return mockApi.deleteEvent(id);
+                } else if (url.match(/^\/api\/notifications\/\d+$/)) {
+                    const id = url.split('/')[2];
+                    return mockNotificationApi.deleteNotification(id);
+                } else if (url === '/api/notifications/clear-all') {
+                    return mockNotificationApi.clearAllNotifications();
+                } else if (url.match(/^\/api\/notifications\/subscribe\/event\/\d+$/)) {
+                    const eventId = url.split('/')[4];
+                    return mockNotificationApi.unsubscribeFromEvent(eventId);
                 }
 
                 // Default case - not implemented in mock

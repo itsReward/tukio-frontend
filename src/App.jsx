@@ -7,6 +7,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { MockApiProvider } from './contexts/MockApiContext'; // Add MockApiProvider
+import NotificationListener from './components/notifications/NotificationListener';
 
 // Layouts
 import MainLayout from './components/layouts/MainLayout.jsx';
@@ -25,7 +26,7 @@ import ProfilePage from './pages/ProfilePage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
-import CreateEventPage from './pages/CreateEventPage.jsx';
+import NotificationsPage from './pages/NotificationsPage.jsx';
 import MyEventsPage from './pages/MyEventsPage.jsx';
 import SettingsPage from './pages/SettingsPage';
 
@@ -41,6 +42,7 @@ function App() {
                     <AuthProvider>
                         <NotificationProvider>
                             <Toaster position="top-right" />
+                            <NotificationListener />
                             <Routes>
                                 {/* Public routes */}
                                 <Route element={<MainLayout />}>
@@ -67,6 +69,7 @@ function App() {
                                         <Route path="/settings" element={<SettingsPage />} />
                                         <Route path="/events/create" element={<CreateEventWrapper />} />
                                         <Route path="/events/my-events" element={<MyEventsPage />} />
+                                        <Route path="/notifications" element={<NotificationsPage />} />
                                     </Route>
                                 </Route>
 

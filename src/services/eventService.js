@@ -42,6 +42,10 @@ class EventService {
         return await api.get(`${EVENT_ENDPOINTS.EVENTS}/upcoming`);
     }
 
+    async getUserUpcomingEvents(id) {
+        return await api.get(`${EVENT_ENDPOINTS.EVENTS}/user/${id}/upcoming`);
+    }
+
     async getEventsByOrganizer(organizerId) {
         return await api.get(`${EVENT_ENDPOINTS.EVENTS}/organizer/${organizerId}`);
     }

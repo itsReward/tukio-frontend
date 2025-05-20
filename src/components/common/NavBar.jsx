@@ -8,7 +8,7 @@ import {
     BellIcon,
     UserCircleIcon
 } from '@heroicons/react/24/outline';
-import { motion } from 'framer-motion';
+import NotificationBell from './NotificationBell';
 import MockApiToggle from '../common/MockApiToggle'; // Import the MockApiToggle component
 
 const NavBar = () => {
@@ -122,17 +122,7 @@ const NavBar = () => {
                                 {isAuthenticated ? (
                                     <>
                                         {/* Notification bell */}
-                                        <button
-                                            type="button"
-                                            className={`relative rounded-full p-1 ${textColorClass} ${hoverTextColorClass} hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2`}
-                                        >
-                                            <span className="absolute -inset-1.5" />
-                                            <span className="sr-only">View notifications</span>
-                                            <div className="relative">
-                                                <BellIcon className="h-6 w-6" aria-hidden="true" />
-                                                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-accent-500 ring-2 ring-white" />
-                                            </div>
-                                        </button>
+                                        <NotificationBell />
 
                                         {/* User dropdown */}
                                         <Menu as="div" className="relative ml-3">
@@ -275,17 +265,10 @@ const NavBar = () => {
                                         </div>
                                         <div className="text-sm font-medium text-neutral-500">{currentUser?.email}</div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        className="relative ml-auto flex-shrink-0 rounded-full p-1 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                                    >
-                                        <span className="absolute -inset-1.5" />
-                                        <span className="sr-only">View notifications</span>
-                                        <div className="relative">
-                                            <BellIcon className="h-6 w-6" aria-hidden="true" />
-                                            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-accent-500 ring-2 ring-white" />
-                                        </div>
-                                    </button>
+
+                                    {/*Notification Bell*/}
+
+                                    <NotificationBell />
                                 </div>
                                 <div className="mt-3 space-y-1">
                                     {userNavigation.map((item) => (
