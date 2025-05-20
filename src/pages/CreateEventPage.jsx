@@ -622,7 +622,7 @@ const CreateEventPage = () => {
                           <button
                             type="button"
                             className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full text-indigo-400 hover:text-indigo-500 focus:outline-none focus:bg-indigo-200 focus:text-indigo-500"
-                            onClick={() => handleTagRemove(tag, values, setFieldValue)}
+                            onClick={handleSubmit => handleTagRemove(tag, values, setFieldValue)}
                           >
                             <span className="sr-only">Remove tag</span>
                             <svg className="h-2 w-2" stroke="currentColor" fill="none" viewBox="0 0 8 8">

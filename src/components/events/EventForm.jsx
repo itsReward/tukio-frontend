@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { motion } from 'framer-motion';
@@ -11,6 +11,18 @@ import { EVENT_STATUSES, VENUE_TYPES } from '../../utils/constants';
 import Button from '../common/Button';
 import Loader from '../common/Loader';
 import Card from '../common/Card';
+import { toast } from 'react-hot-toast';
+
+// Load ApiTester for debugging
+useEffect(() => {
+    loadApiTester();
+
+    // Modify eventService to add BASE_URL if not present
+    if (!eventService.BASE_URL) {
+        eventService.BASE_URL = 'tukio-events-service/api/events';
+        console.log("Set BASE_URL for event service:", eventService.BASE_URL);
+    }
+}, []);
 
 /**
  * Event Form Component
@@ -19,7 +31,12 @@ import Card from '../common/Card';
 const EventForm = ({ isEditing = false }) => {
     const { currentUser } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const { id } = useParams();
+
+    // Check for venueId in query params
+    const queryParams = new URLSearchParams(location.search);
+    const venueIdParam = queryParams.get('venueId');
 
     const [loading, setLoading] = useState(false);
     const [submitError, setSubmitError] = useState(null);
@@ -82,11 +99,12 @@ const EventForm = ({ isEditing = false }) => {
             endTime: '',
             categoryId: '',
             location: '',
-            venueId: null,
+            venueId: venueIdParam || null,
             maxParticipants: 50,
             imageUrl: '',
             tags: [],
             status: EVENT_STATUSES.SCHEDULED,
+            organizer: currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Unknown Organizer',
             organizerId: currentUser?.id || 0
         },
         validationSchema,
@@ -102,22 +120,61 @@ const EventForm = ({ isEditing = false }) => {
                     endTime: new Date(values.endTime).toISOString(),
                     categoryId: Number(values.categoryId),
                     maxParticipants: Number(values.maxParticipants),
-                    venueId: values.venueId ? Number(values.venueId) : null
+                    venueId: values.venueId ? Number(values.venueId) : null,
+                    organizer: values.organizer || `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 'Unknown Organizer'
                 };
 
                 let response;
 
                 if (isEditing) {
                     response = await eventService.updateEvent(id, formattedValues);
+                    toast.success('Event updated successfully!');
                 } else {
                     response = await eventService.createEvent(formattedValues);
+                    toast.success('Event created successfully!');
                 }
 
                 // Navigate to the event details page
                 navigate(`/events/${response.data.id}`);
             } catch (error) {
                 console.error('Error submitting event:', error);
-                setSubmitError(error.response?.data?.message || 'Failed to save event. Please try again.');
+
+                // Try to extract more detailed error information
+                let errorMessage = 'Failed to save event. Please try again.';
+
+                if (error.response) {
+                    console.log("Error response status:", error.response.status);
+                    console.log("Error response headers:", error.response.headers);
+                    console.log("Error response data:", error.response.data);
+
+                    // Try to parse the responseText if available
+                    if (error.request && error.request.responseText) {
+                        try {
+                            const errorResponseText = error.request.responseText;
+                            console.log("Raw error response text:", errorResponseText);
+
+                            const parsedError = JSON.parse(errorResponseText);
+                            console.log("Parsed error response:", parsedError);
+
+                            if (parsedError.message) {
+                                errorMessage = parsedError.message;
+                            } else if (parsedError.error) {
+                                errorMessage = parsedError.error;
+                            }
+                        } catch (e) {
+                            console.error("Error parsing error response:", e);
+                        }
+                    }
+
+                    if (error.response.data && error.response.data.message) {
+                        errorMessage = error.response.data.message;
+                    } else if (error.response.data && typeof error.response.data === 'string') {
+                        errorMessage = error.response.data;
+                    }
+                }
+
+                setSubmitError(errorMessage);
+                toast.error(errorMessage);
             } finally {
                 setLoading(false);
             }
@@ -150,7 +207,8 @@ const EventForm = ({ isEditing = false }) => {
                         imageUrl: event.imageUrl || '',
                         tags: event.tags || [],
                         status: event.status || EVENT_STATUSES.SCHEDULED,
-                        organizerId: event.organizerId || currentUser?.id || 0
+                        organizerId: event.organizerId || currentUser?.id || 0,
+                        organizer: event.organizer || `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 'Unknown Organizer'
                     });
                 } catch (error) {
                     console.error('Error fetching event:', error);
@@ -229,6 +287,11 @@ const EventForm = ({ isEditing = false }) => {
         );
     }
 
+    // For debugging - log form values and errors
+    console.log("Form values being submitted:", formattedValues);
+    console.log("Form errors:", formik.errors);
+    console.log("Form is submitting:", loading);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -252,7 +315,10 @@ const EventForm = ({ isEditing = false }) => {
                         </div>
                     )}
 
-                    <form onSubmit={formik.handleSubmit} className="space-y-6">
+                    <form onSubmit={(e) => {
+                        console.log("Form submit event triggered");
+                        formik.handleSubmit(e);
+                    }} className="space-y-6">
                         {/* Event Title */}
                         <div>
                             <label htmlFor="title" className="block text-sm font-medium text-neutral-700 mb-1">
@@ -574,6 +640,13 @@ const EventForm = ({ isEditing = false }) => {
                                 variant="primary"
                                 loading={loading}
                                 disabled={loading}
+                                onClick={() => {
+                                    console.log("Submit button clicked");
+                                    console.log("Form is valid:", formik.isValid);
+                                    console.log("Form errors:", formik.errors);
+                                    console.log("Form values:", formik.values);
+                                    // The formik.handleSubmit() will be called by the form's onSubmit
+                                }}
                             >
                                 {isEditing ? 'Update Event' : 'Create Event'}
                             </Button>
