@@ -31,6 +31,7 @@ import SettingsPage from './pages/SettingsPage';
 
 // Auth guard
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import CreateEventWrapper from "./pages/CreateEventWrapper.jsx";
 
 function App() {
     return (
@@ -64,7 +65,7 @@ function App() {
                                         <Route path="/dashboard" element={<DashboardPage />} />
                                         <Route path="/profile" element={<ProfilePage />} />
                                         <Route path="/settings" element={<SettingsPage />} />
-                                        <Route path="/events/create" element={<CreateEventPage />} />
+                                        <Route path="/events/create" element={<CreateEventWrapper />} />
                                         <Route path="/events/my-events" element={<MyEventsPage />} />
                                     </Route>
                                 </Route>

@@ -16,9 +16,16 @@ class EventService {
     }
 
     async createEvent(eventData) {
-        return await api.post(EVENT_ENDPOINTS.EVENTS, eventData);
+        console.log('Creating event with data:', eventData);
+        try {
+            const response = await api.post(EVENT_ENDPOINTS.EVENTS, eventData);
+            console.log('Event created successfully:', response.data);
+            return response;
+        } catch (error) {
+            console.error('Error creating event:', error);
+            throw error;
+        }
     }
-
     async updateEvent(id, eventData) {
         return await api.put(`${EVENT_ENDPOINTS.EVENTS}/${id}`, eventData);
     }

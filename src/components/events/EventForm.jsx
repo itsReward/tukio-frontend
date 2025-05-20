@@ -1,256 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
+import React from 'react';
+import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { CalendarIcon, ClockIcon, MapPinIcon, TagIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { useAuth } from '../../hooks/useAuth';
-import eventService from '../../services/eventService';
-import venueService from '../../services/venueService';
-import { EVENT_STATUSES, VENUE_TYPES } from '../../utils/constants';
-import Button from '../common/Button';
-import Loader from '../common/Loader';
 import Card from '../common/Card';
-import { toast } from 'react-hot-toast';
+import Button from '../common/Button';
 
-// Load ApiTester for debugging
-useEffect(() => {
-    loadApiTester();
-
-    // Modify eventService to add BASE_URL if not present
-    if (!eventService.BASE_URL) {
-        eventService.BASE_URL = 'tukio-events-service/api/events';
-        console.log("Set BASE_URL for event service:", eventService.BASE_URL);
-    }
-}, []);
-
-/**
- * Event Form Component
- * Used for both creating and editing events
- */
-const EventForm = ({ isEditing = false }) => {
-    const { currentUser } = useAuth();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { id } = useParams();
-
-    // Check for venueId in query params
-    const queryParams = new URLSearchParams(location.search);
-    const venueIdParam = queryParams.get('venueId');
-
-    const [loading, setLoading] = useState(false);
-    const [submitError, setSubmitError] = useState(null);
-    const [venues, setVenues] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [venuesLoading, setVenuesLoading] = useState(false);
-    const [categoriesLoading, setCategoriesLoading] = useState(false);
-    const [tagInput, setTagInput] = useState('');
-
-    // Form validation schema
-    const validationSchema = Yup.object({
-        title: Yup.string()
-            .required('Event title is required')
-            .max(100, 'Title must be 100 characters or less'),
-        description: Yup.string()
-            .required('Description is required')
-            .max(2000, 'Description must be 2000 characters or less'),
-        startTime: Yup.date()
-            .required('Start time is required')
-            .min(new Date(), 'Start time must be in the future'),
-        endTime: Yup.date()
-            .required('End time is required')
-            .min(
-                Yup.ref('startTime'),
-                'End time must be after start time'
-            ),
-        categoryId: Yup.number()
-            .required('Category is required'),
-        location: Yup.string()
-            .when('venueId', {
-                is: (value) => !value,
-                then: Yup.string().required('Location is required if no venue is selected'),
-                otherwise: Yup.string()
-            }),
-        venueId: Yup.number()
-            .nullable()
-            .when('location', {
-                is: (value) => !value,
-                then: Yup.number().required('Venue or location is required'),
-                otherwise: Yup.number().nullable()
-            }),
-        maxParticipants: Yup.number()
-            .required('Maximum participants is required')
-            .min(1, 'Maximum participants must be at least 1')
-            .integer('Maximum participants must be a whole number'),
-        imageUrl: Yup.string()
-            .url('Invalid URL format')
-            .nullable(),
-        status: Yup.string()
-            .required('Status is required')
-            .oneOf(Object.values(EVENT_STATUSES), 'Invalid status')
-    });
-
-    // Initialize form with default values
-    const formik = useFormik({
-        initialValues: {
-            title: '',
-            description: '',
-            startTime: '',
-            endTime: '',
-            categoryId: '',
-            location: '',
-            venueId: venueIdParam || null,
-            maxParticipants: 50,
-            imageUrl: '',
-            tags: [],
-            status: EVENT_STATUSES.SCHEDULED,
-            organizer: currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Unknown Organizer',
-            organizerId: currentUser?.id || 0
-        },
-        validationSchema,
-        onSubmit: async (values) => {
-            try {
-                setLoading(true);
-                setSubmitError(null);
-
-                // Format dates properly for API
-                const formattedValues = {
-                    ...values,
-                    startTime: new Date(values.startTime).toISOString(),
-                    endTime: new Date(values.endTime).toISOString(),
-                    categoryId: Number(values.categoryId),
-                    maxParticipants: Number(values.maxParticipants),
-                    venueId: values.venueId ? Number(values.venueId) : null,
-                    organizer: values.organizer || `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 'Unknown Organizer'
-                };
-
-                let response;
-
-                if (isEditing) {
-                    response = await eventService.updateEvent(id, formattedValues);
-                    toast.success('Event updated successfully!');
-                } else {
-                    response = await eventService.createEvent(formattedValues);
-                    toast.success('Event created successfully!');
-                }
-
-                // Navigate to the event details page
-                navigate(`/events/${response.data.id}`);
-            } catch (error) {
-                console.error('Error submitting event:', error);
-
-                // Try to extract more detailed error information
-                let errorMessage = 'Failed to save event. Please try again.';
-
-                if (error.response) {
-                    console.log("Error response status:", error.response.status);
-                    console.log("Error response headers:", error.response.headers);
-                    console.log("Error response data:", error.response.data);
-
-                    // Try to parse the responseText if available
-                    if (error.request && error.request.responseText) {
-                        try {
-                            const errorResponseText = error.request.responseText;
-                            console.log("Raw error response text:", errorResponseText);
-
-                            const parsedError = JSON.parse(errorResponseText);
-                            console.log("Parsed error response:", parsedError);
-
-                            if (parsedError.message) {
-                                errorMessage = parsedError.message;
-                            } else if (parsedError.error) {
-                                errorMessage = parsedError.error;
-                            }
-                        } catch (e) {
-                            console.error("Error parsing error response:", e);
-                        }
-                    }
-
-                    if (error.response.data && error.response.data.message) {
-                        errorMessage = error.response.data.message;
-                    } else if (error.response.data && typeof error.response.data === 'string') {
-                        errorMessage = error.response.data;
-                    }
-                }
-
-                setSubmitError(errorMessage);
-                toast.error(errorMessage);
-            } finally {
-                setLoading(false);
-            }
-        }
-    });
-
-    // Fetch event data if editing
-    useEffect(() => {
-        const fetchEventData = async () => {
-            if (isEditing && id) {
-                try {
-                    setLoading(true);
-                    const response = await eventService.getEventById(id);
-                    const event = response.data;
-
-                    // Format dates for form inputs
-                    const startTime = new Date(event.startTime);
-                    const endTime = new Date(event.endTime);
-
-                    // Set form values
-                    formik.setValues({
-                        title: event.title || '',
-                        description: event.description || '',
-                        startTime: startTime.toISOString().slice(0, 16),
-                        endTime: endTime.toISOString().slice(0, 16),
-                        categoryId: event.categoryId || '',
-                        location: event.location || '',
-                        venueId: event.venueId || null,
-                        maxParticipants: event.maxParticipants || 50,
-                        imageUrl: event.imageUrl || '',
-                        tags: event.tags || [],
-                        status: event.status || EVENT_STATUSES.SCHEDULED,
-                        organizerId: event.organizerId || currentUser?.id || 0,
-                        organizer: event.organizer || `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 'Unknown Organizer'
-                    });
-                } catch (error) {
-                    console.error('Error fetching event:', error);
-                    setSubmitError('Failed to load event data. Please try again.');
-                } finally {
-                    setLoading(false);
-                }
-            }
-        };
-
-        fetchEventData();
-    }, [isEditing, id, currentUser]);
-
-    // Fetch venues and categories
-    useEffect(() => {
-        const fetchVenues = async () => {
-            try {
-                setVenuesLoading(true);
-                const response = await venueService.getAllVenues();
-                setVenues(response.data);
-            } catch (error) {
-                console.error('Error fetching venues:', error);
-            } finally {
-                setVenuesLoading(false);
-            }
-        };
-
-        const fetchCategories = async () => {
-            try {
-                setCategoriesLoading(true);
-                const response = await eventService.getAllCategories();
-                setCategories(response.data);
-            } catch (error) {
-                console.error('Error fetching categories:', error);
-            } finally {
-                setCategoriesLoading(false);
-            }
-        };
-
-        fetchVenues();
-        fetchCategories();
-    }, []);
+const EventForm = ({ formik, categories, venues, loading }) => {
+    const [tagInput, setTagInput] = React.useState('');
 
     // Handle tag input
     const handleTagInputChange = (e) => {
@@ -279,19 +35,6 @@ const EventForm = ({ isEditing = false }) => {
         );
     };
 
-    if (loading && isEditing) {
-        return (
-            <div className="flex justify-center my-8">
-                <Loader size="lg" text="Loading event data..." />
-            </div>
-        );
-    }
-
-    // For debugging - log form values and errors
-    console.log("Form values being submitted:", formattedValues);
-    console.log("Form errors:", formik.errors);
-    console.log("Form is submitting:", loading);
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -299,26 +42,8 @@ const EventForm = ({ isEditing = false }) => {
             transition={{ duration: 0.5 }}
         >
             <Card className="max-w-4xl mx-auto">
-                <Card.Header>
-                    <Card.Title>{isEditing ? 'Edit Event' : 'Create New Event'}</Card.Title>
-                    <Card.Subtitle>
-                        {isEditing
-                            ? 'Update the details of your event'
-                            : 'Fill in the details to create a new event'}
-                    </Card.Subtitle>
-                </Card.Header>
-
                 <Card.Body>
-                    {submitError && (
-                        <div className="mb-6 p-4 bg-accent-50 text-accent-700 rounded-md border border-accent-200">
-                            <p>{submitError}</p>
-                        </div>
-                    )}
-
-                    <form onSubmit={(e) => {
-                        console.log("Form submit event triggered");
-                        formik.handleSubmit(e);
-                    }} className="space-y-6">
+                    <form onSubmit={formik.handleSubmit} className="space-y-6">
                         {/* Event Title */}
                         <div>
                             <label htmlFor="title" className="block text-sm font-medium text-neutral-700 mb-1">
@@ -427,15 +152,11 @@ const EventForm = ({ isEditing = false }) => {
                                 {...formik.getFieldProps('categoryId')}
                             >
                                 <option value="">Select a category</option>
-                                {categoriesLoading ? (
-                                    <option disabled>Loading categories...</option>
-                                ) : (
-                                    categories.map((category) => (
-                                        <option key={category.id} value={category.id}>
-                                            {category.name}
-                                        </option>
-                                    ))
-                                )}
+                                {categories.map((category) => (
+                                    <option key={category.id} value={category.id}>
+                                        {category.name}
+                                    </option>
+                                ))}
                             </select>
                             {formik.touched.categoryId && formik.errors.categoryId && (
                                 <p className="mt-1 text-sm text-accent-600">{formik.errors.categoryId}</p>
@@ -481,15 +202,11 @@ const EventForm = ({ isEditing = false }) => {
                                     {...formik.getFieldProps('venueId')}
                                 >
                                     <option value="">Select a venue (optional)</option>
-                                    {venuesLoading ? (
-                                        <option disabled>Loading venues...</option>
-                                    ) : (
-                                        venues.map((venue) => (
-                                            <option key={venue.id} value={venue.id}>
-                                                {venue.name} ({venue.capacity} capacity)
-                                            </option>
-                                        ))
-                                    )}
+                                    {venues.map((venue) => (
+                                        <option key={venue.id} value={venue.id}>
+                                            {venue.name} ({venue.capacity} capacity)
+                                        </option>
+                                    ))}
                                 </select>
                                 {formik.touched.venueId && formik.errors.venueId && (
                                     <p className="mt-1 text-sm text-accent-600">{formik.errors.venueId}</p>
@@ -549,6 +266,25 @@ const EventForm = ({ isEditing = false }) => {
                             </p>
                         </div>
 
+                        {/* Organizer - Critical field */}
+                        <div>
+                            <label htmlFor="organizer" className="block text-sm font-medium text-neutral-700 mb-1">
+                                Organizer *
+                            </label>
+                            <input
+                                id="organizer"
+                                name="organizer"
+                                type="text"
+                                className={`form-input ${
+                                    formik.touched.organizer && formik.errors.organizer ? 'border-accent-500' : ''
+                                }`}
+                                {...formik.getFieldProps('organizer')}
+                            />
+                            {formik.touched.organizer && formik.errors.organizer && (
+                                <p className="mt-1 text-sm text-accent-600">{formik.errors.organizer}</p>
+                            )}
+                        </div>
+
                         {/* Tags */}
                         <div>
                             <label htmlFor="tags" className="block text-sm font-medium text-neutral-700 mb-1">
@@ -600,38 +336,12 @@ const EventForm = ({ isEditing = false }) => {
                             </p>
                         </div>
 
-                        {/* Status (only for editing) */}
-                        {isEditing && (
-                            <div>
-                                <label htmlFor="status" className="block text-sm font-medium text-neutral-700 mb-1">
-                                    Event Status
-                                </label>
-                                <select
-                                    id="status"
-                                    name="status"
-                                    className={`form-select ${
-                                        formik.touched.status && formik.errors.status ? 'border-accent-500' : ''
-                                    }`}
-                                    {...formik.getFieldProps('status')}
-                                >
-                                    {Object.entries(EVENT_STATUSES).map(([key, value]) => (
-                                        <option key={key} value={value}>
-                                            {value}
-                                        </option>
-                                    ))}
-                                </select>
-                                {formik.touched.status && formik.errors.status && (
-                                    <p className="mt-1 text-sm text-accent-600">{formik.errors.status}</p>
-                                )}
-                            </div>
-                        )}
-
                         {/* Submit buttons */}
                         <div className="flex justify-end space-x-4 pt-4">
                             <Button
                                 type="button"
                                 variant="outline-neutral"
-                                onClick={() => navigate(-1)}
+                                onClick={() => window.history.back()}
                             >
                                 Cancel
                             </Button>
@@ -640,15 +350,8 @@ const EventForm = ({ isEditing = false }) => {
                                 variant="primary"
                                 loading={loading}
                                 disabled={loading}
-                                onClick={() => {
-                                    console.log("Submit button clicked");
-                                    console.log("Form is valid:", formik.isValid);
-                                    console.log("Form errors:", formik.errors);
-                                    console.log("Form values:", formik.values);
-                                    // The formik.handleSubmit() will be called by the form's onSubmit
-                                }}
                             >
-                                {isEditing ? 'Update Event' : 'Create Event'}
+                                Create Event
                             </Button>
                         </div>
                     </form>
@@ -656,6 +359,13 @@ const EventForm = ({ isEditing = false }) => {
             </Card>
         </motion.div>
     );
+};
+
+EventForm.propTypes = {
+    formik: PropTypes.object.isRequired,
+    categories: PropTypes.array.isRequired,
+    venues: PropTypes.array.isRequired,
+    loading: PropTypes.bool.isRequired,
 };
 
 export default EventForm;
