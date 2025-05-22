@@ -26,12 +26,27 @@ const NavBar = () => {
         { name: 'Venues', to: '/venues', authenticated: false },
         { name: 'Leaderboard', to: '/leaderboard', authenticated: false },
         { name: 'Dashboard', to: '/dashboard', authenticated: true },
+        // Add admin navigation for admin users
+        {
+            name: 'Admin',
+            to: '/admin/venues',
+            authenticated: true,
+            adminOnly: true
+        },
     ];
 
     // User menu items
     const userNavigation = [
         { name: 'Your Profile', to: '/profile' },
         { name: 'Settings', to: '/settings' },
+        // Admin-specific navigation for admin users
+        ...(currentUser?.roles?.includes('ADMIN') ? [
+            { name: 'Admin Panel', to: '/admin/venues', divider: true },
+            { name: 'Manage Venues', to: '/admin/venues' },
+            { name: 'Manage Events', to: '/admin/events' },
+            { name: 'User Management', to: '/admin/users' },
+        ] : []),
+
         { name: 'Logout', onClick: logout },
     ];
 
@@ -94,7 +109,16 @@ const NavBar = () => {
                                 </div>
                                 <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                                     {navigation
-                                        .filter(item => !item.authenticated || (item.authenticated && isAuthenticated))
+                                        .filter(item => {
+                                            // Check authentication requirement
+                                            if (item.authenticated && !isAuthenticated) return false;
+                                            if (!item.authenticated && item.adminOnly) return false;
+
+                                            // Check admin requirement
+                                            if (item.adminOnly && !currentUser?.roles?.includes('ADMIN')) return false;
+
+                                            return true;
+                                        })
                                         .map((item) => (
                                             <NavLink
                                                 key={item.name}
@@ -271,16 +295,18 @@ const NavBar = () => {
                                     <NotificationBell />
                                 </div>
                                 <div className="mt-3 space-y-1">
-                                    {userNavigation.map((item) => (
-                                        <Disclosure.Button
-                                            key={item.name}
-                                            as={item.to ? Link : 'button'}
-                                            to={item.to}
-                                            onClick={item.onClick}
-                                            className="block px-4 py-2 text-base font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 w-full text-left"
-                                        >
-                                            {item.name}
-                                        </Disclosure.Button>
+                                    {userNavigation.map((item, index) => (
+                                        <React.Fragment key={item.name}>
+                                            {item.divider && <hr className="border-neutral-200 my-2" />}
+                                            <Disclosure.Button
+                                                as={item.to ? Link : 'button'}
+                                                to={item.to}
+                                                onClick={item.onClick}
+                                                className="block px-4 py-2 text-base font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 w-full text-left"
+                                            >
+                                                {item.name}
+                                            </Disclosure.Button>
+                                        </React.Fragment>
                                     ))}
                                 </div>
                             </div>

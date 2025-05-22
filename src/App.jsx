@@ -1,3 +1,4 @@
+// Updated App.jsx with admin venue management routes
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -6,7 +7,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
-import { MockApiProvider } from './contexts/MockApiContext'; // Add MockApiProvider
+import { MockApiProvider } from './contexts/MockApiContext';
 import NotificationListener from './components/notifications/NotificationListener';
 
 // Layouts
@@ -30,14 +31,19 @@ import NotificationsPage from './pages/NotificationsPage.jsx';
 import MyEventsPage from './pages/MyEventsPage.jsx';
 import SettingsPage from './pages/SettingsPage';
 
-// Auth guard
+// Admin Pages
+import AdminVenuesPageWrapper from './pages/AdminVenuesPageWrapper.jsx';
+import VenueFormPage from './pages/VenueFormPage';
+
+// Auth guards
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import AdminProtectedRoute from './components/auth/AdminProtectedRoute';
 import CreateEventWrapper from "./pages/CreateEventWrapper.jsx";
 
 function App() {
     return (
         <Router>
-            <MockApiProvider> {/* Wrap the entire app with MockApiProvider */}
+            <MockApiProvider>
                 <ThemeProvider>
                     <AuthProvider>
                         <NotificationProvider>
@@ -70,6 +76,15 @@ function App() {
                                         <Route path="/events/create" element={<CreateEventWrapper />} />
                                         <Route path="/events/my-events" element={<MyEventsPage />} />
                                         <Route path="/notifications" element={<NotificationsPage />} />
+                                    </Route>
+                                </Route>
+
+                                {/* Admin-only protected routes */}
+                                <Route element={<AdminProtectedRoute />}>
+                                    <Route element={<MainLayout />}>
+                                        <Route path="/admin/venues" element={<AdminVenuesPageWrapper />} />
+                                        <Route path="/admin/venues/create" element={<VenueFormPage />} />
+                                        <Route path="/admin/venues/:id/edit" element={<VenueFormPage />} />
                                     </Route>
                                 </Route>
 
