@@ -600,77 +600,95 @@ const ProfilePage = () => {
                         </div>
 
                         <div className="p-6">
-                            {userEvents.length > 0 ? (
-                                <div className="space-y-6">
-                                    {/* Filter tabs */}
-                                    <div className="flex border-b border-neutral-200">
-                                        <button className="px-4 py-2 border-b-2 border-primary-500 text-primary-600 font-medium">
-                                            Upcoming
-                                        </button>
-                                        <button className="px-4 py-2 text-neutral-500 hover:text-neutral-700">
-                                            Past
-                                        </button>
-                                        <button className="px-4 py-2 text-neutral-500 hover:text-neutral-700">
-                                            Created by Me
-                                        </button>
-                                    </div>
+                            {/* Filter tabs */}
+                            <div className="flex border-b border-neutral-200">
+                                <button
+                                    className="px-4 py-2 border-b-2 border-primary-500 text-primary-600 font-medium"
+                                >
+                                    Upcoming
+                                </button>
+                                <button
+                                    className="px-4 py-2 text-neutral-500 hover:text-neutral-700 border-transparent border-b-2 hover:border-neutral-300"
+                                >
+                                    Past
+                                </button>
+                                <button
+                                    className="px-4 py-2 text-neutral-500 hover:text-neutral-700 border-transparent border-b-2 hover:border-neutral-300"
+                                >
+                                    Created by Me
+                                </button>
+                            </div>
 
-                                    {/* Event list */}
-                                    <div className="divide-y divide-neutral-200">
-                                        {userEvents.slice(0, 5).map((event) => (
-                                            <div key={event.id} className="py-4 flex flex-col sm:flex-row sm:items-center">
-                                                <div className="flex-grow">
-                                                    <h3 className="text-lg font-medium text-neutral-900">
-                                                        {event.title}
-                                                    </h3>
-                                                    <div className="mt-1 flex flex-wrap items-center text-sm text-neutral-500 gap-x-4 gap-y-1">
-                                                        <span className="flex items-center">
-                                                            <CalendarIcon className="mr-1 h-4 w-4 flex-shrink-0" />
-                                                            {new Date(event.startTime).toLocaleDateString()}
-                                                        </span>
-                                                        <span className="flex items-center">
-                                                            <ClockIcon className="mr-1 h-4 w-4 flex-shrink-0" />
-                                                            {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
-                                                        <span className="flex items-center">
-                                                            <MapPinIcon className="mr-1 h-4 w-4 flex-shrink-0" />
-                                                            {event.venueName || 'TBD'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="mt-2 sm:mt-0 flex items-center">
-                                                    <span className={`mr-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                        event.status === 'REGISTERED' ? 'bg-primary-100 text-primary-800' :
-                                                            event.status === 'ATTENDED' ? 'bg-success-100 text-success-800' :
-                                                                event.status === 'CANCELLED' ? 'bg-accent-100 text-accent-800' :
-                                                                    'bg-neutral-100 text-neutral-800'
-                                                    }`}>
-                                                        {event.status}
-                                                    </span>
-                                                    <Link
-                                                        to={`/events/${event.eventId}`}
-                                                        className="text-primary-600 hover:text-primary-800 text-sm font-medium"
-                                                    >
-                                                        View Event
-                                                    </Link>
+                            {/* Event list */}
+                            {userEvents.length > 0 ? (
+                                <div className="divide-y divide-neutral-200 mt-4">
+                                    {userEvents.slice(0, 5).map((event) => (
+                                        <div key={event.id || event.eventId || `event-${Math.random()}`} className="py-4 flex flex-col sm:flex-row sm:items-center">
+                                            <div className="flex-grow">
+                                                <h3 className="text-lg font-medium text-neutral-900">
+                                                    {event.eventTitle || event.title || "Untitled Event"}
+                                                </h3>
+                                                <div className="mt-1 flex flex-wrap items-center text-sm text-neutral-500 gap-x-4 gap-y-1">
+                                    <span className="flex items-center">
+                                        <CalendarIcon className="mr-1 h-4 w-4 flex-shrink-0" />
+                                        {(() => {
+                                            // Safe date formatting with fallback
+                                            try {
+                                                const date = new Date(event.startTime);
+                                                if (isNaN(date.getTime())) return "Date unavailable";
+                                                return date.toLocaleDateString(undefined, {
+                                                    year: 'numeric',
+                                                    month: 'short',
+                                                    day: 'numeric'
+                                                });
+                                            } catch (e) {
+                                                return "Date unavailable";
+                                            }
+                                        })()}
+                                    </span>
+                                                    <span className="flex items-center">
+                                        <ClockIcon className="mr-1 h-4 w-4 flex-shrink-0" />
+                                                        {(() => {
+                                                            // Safe time formatting with fallback
+                                                            try {
+                                                                const date = new Date(event.startTime);
+                                                                if (isNaN(date.getTime())) return "Time unavailable";
+                                                                return date.toLocaleTimeString(undefined, {
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit'
+                                                                });
+                                                            } catch (e) {
+                                                                return "Time unavailable";
+                                                            }
+                                                        })()}
+                                    </span>
+                                                    <span className="flex items-center">
+                                        <MapPinIcon className="mr-1 h-4 w-4 flex-shrink-0" />
+                                                        {event.location || event.venueName || "Location TBD"}
+                                    </span>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-
-                                    {userEvents.length > 5 && (
-                                        <div className="mt-6 text-center">
-                                            <Link
-                                                to="/events/my-events"
-                                                className="text-primary-600 hover:text-primary-800 font-medium"
-                                            >
-                                                View all {userEvents.length} events
-                                            </Link>
+                                            <div className="mt-2 sm:mt-0 flex items-center">
+                                <span className={`mr-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    event.status === 'REGISTERED' ? 'bg-primary-100 text-primary-800' :
+                                        event.status === 'ATTENDED' ? 'bg-success-100 text-success-800' :
+                                            event.status === 'CANCELLED' ? 'bg-accent-100 text-accent-800' :
+                                                'bg-neutral-100 text-neutral-800'
+                                }`}>
+                                    {event.status || 'REGISTERED'}
+                                </span>
+                                                <Link
+                                                    to={`/events/${event.eventId || event.id}`}
+                                                    className="text-primary-600 hover:text-primary-800 text-sm font-medium"
+                                                >
+                                                    View Event
+                                                </Link>
+                                            </div>
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
                             ) : (
-                                <div className="text-center py-10">
+                                <div className="text-center py-10 mt-4">
                                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-neutral-100 mb-4">
                                         <CalendarIcon className="h-8 w-8 text-neutral-400" />
                                     </div>
@@ -686,10 +704,20 @@ const ProfilePage = () => {
                                     </Link>
                                 </div>
                             )}
+
+                            {userEvents.length > 5 && (
+                                <div className="mt-6 text-center">
+                                    <Link
+                                        to="/events/my-events"
+                                        className="text-primary-600 hover:text-primary-800 font-medium"
+                                    >
+                                        View all {userEvents.length} events
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
-
                 {/* Badges Tab Content */}
                 {activeTab === 'badges' && (
                     <div className="space-y-6">

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { useNotifications }  from 'src/hooks/useNotifications.js';
-import { useAuth } from 'src/hooks/useAuth';
+import { useNotifications }  from '../../hooks/useNotifications.js';
+import { useAuth } from '../../hooks/useAuth';
 
 /**
  * Component that listens for real-time notifications
