@@ -1,119 +1,154 @@
 import React, { useEffect } from 'react';
-import { useNotifications }  from '../../hooks/useNotifications.js';
+import { useNotifications } from '../../hooks/useNotifications';
 import { useAuth } from '../../hooks/useAuth';
 
 /**
- * Component that listens for real-time notifications
+ * Updated NotificationListener Component
  *
- * This is a placeholder that simulates real-time notifications.
- * In a production environment, this would use WebSockets or Server-Sent Events.
+ * Handles real-time notifications using WebSocket connection
+ * and provides fallback simulation for demo purposes
  */
 const NotificationListener = () => {
-    const { processNewNotification } = useNotifications();
-    const { isAuthenticated } = useAuth();
+    const { processNewNotification, wsConnection } = useNotifications();
+    const { isAuthenticated, currentUser } = useAuth();
 
     useEffect(() => {
-        if (!isAuthenticated) return;
+        if (!isAuthenticated || !currentUser?.id) return;
 
-        // This is a simple timer to simulate real-time notifications
-        // In a real app, you would connect to a WebSocket or use Server-Sent Events
-        const simulateInterval = Math.floor(Math.random() * 60000) + 30000; // Random interval between 30s and 90s
+        // Check if we're in mock mode
+        const isMockMode = localStorage.getItem('useMockApi') === 'true';
 
-        const notificationTypes = ['info', 'success', 'warning', 'error'];
-        const generateRandomNotification = () => {
-            const type = notificationTypes[Math.floor(Math.random() * notificationTypes.length)];
-            const id = Math.floor(Math.random() * 1000000).toString();
+        if (isMockMode) {
+            // In mock mode, the WebSocket connection will automatically simulate notifications
+            // But we can also add some manual triggers for testing
 
-            // Sample notification templates
-            const templates = {
-                info: [
-                    {
-                        title: 'New event recommendation',
-                        message: 'Based on your interests, we thought you might like the upcoming "Data Science Workshop" event.',
-                        link: '/events'
-                    },
-                    {
-                        title: 'Event reminder',
-                        message: 'Your registered event "Campus Hackathon" starts in 24 hours.',
-                        link: '/events/1'
+            // Add a global function for testing notifications in development
+            if (process.env.NODE_ENV === 'development') {
+                window.triggerTestNotification = (type = 'EVENT_REMINDER') => {
+                    const testNotifications = {
+                        EVENT_REMINDER: {
+                            title: 'Test Event Reminder',
+                            content: 'This is a test reminder for an upcoming event.',
+                            type: 'EVENT_REMINDER',
+                            referenceId: '1',
+                            referenceType: 'EVENT'
+                        },
+                        EVENT_REGISTRATION: {
+                            title: 'Test Registration Confirmation',
+                            content: 'Your test registration has been confirmed.',
+                            type: 'EVENT_REGISTRATION',
+                            referenceId: '2',
+                            referenceType: 'EVENT'
+                        },
+                        EVENT_CANCELLATION: {
+                            title: 'Test Event Cancellation',
+                            content: 'A test event has been cancelled.',
+                            type: 'EVENT_CANCELLATION',
+                            referenceId: '3',
+                            referenceType: 'EVENT'
+                        },
+                        VENUE_CHANGE: {
+                            title: 'Test Venue Change',
+                            content: 'The venue for a test event has been changed.',
+                            type: 'VENUE_CHANGE',
+                            referenceId: '4',
+                            referenceType: 'EVENT'
+                        },
+                        SYSTEM_ANNOUNCEMENT: {
+                            title: 'Test System Announcement',
+                            content: 'This is a test system announcement.',
+                            type: 'SYSTEM_ANNOUNCEMENT',
+                            referenceId: null,
+                            referenceType: null
+                        }
+                    };
+
+                    if (wsConnection?.sendTestNotification) {
+                        wsConnection.sendTestNotification(testNotifications[type] || testNotifications.EVENT_REMINDER);
                     }
-                ],
-                success: [
-                    {
-                        title: 'Points awarded',
-                        message: 'You earned 50 points for attending "JavaScript Fundamentals Workshop".',
-                        link: '/profile'
-                    },
-                    {
-                        title: 'Badge unlocked',
-                        message: 'Congratulations! You\'ve earned the "Event Explorer" badge.',
-                        link: '/profile#badges'
+                };
+
+                // Log available test functions
+                console.log('🔔 Notification testing functions available:');
+                console.log('- triggerTestNotification("EVENT_REMINDER")');
+                console.log('- triggerTestNotification("EVENT_REGISTRATION")');
+                console.log('- triggerTestNotification("EVENT_CANCELLATION")');
+                console.log('- triggerTestNotification("VENUE_CHANGE")');
+                console.log('- triggerTestNotification("SYSTEM_ANNOUNCEMENT")');
+            }
+
+            // Simulate occasional notifications for demo purposes
+            const simulatePeriodicNotification = () => {
+                // Only simulate with 20% probability to avoid spam
+                if (Math.random() < 0.2) {
+                    const notificationTypes = [
+                        'EVENT_REMINDER',
+                        'EVENT_REGISTRATION',
+                        'SYSTEM_ANNOUNCEMENT',
+                        'EVENT_UPDATE'
+                    ];
+
+                    const randomType = notificationTypes[Math.floor(Math.random() * notificationTypes.length)];
+
+                    if (window.triggerTestNotification) {
+                        window.triggerTestNotification(randomType);
                     }
-                ],
-                warning: [
-                    {
-                        title: 'Event capacity almost full',
-                        message: 'The "Mobile App Development Workshop" is almost at capacity. Register soon to secure your spot!',
-                        link: '/events/3'
-                    },
-                    {
-                        title: 'Event time changed',
-                        message: 'The "Campus Art Exhibition" has been rescheduled to 5:00 PM.',
-                        link: '/events/4'
-                    }
-                ],
-                error: [
-                    {
-                        title: 'Event cancelled',
-                        message: 'The "Database Design Workshop" scheduled for tomorrow has been cancelled.',
-                        link: null
-                    },
-                    {
-                        title: 'Registration failed',
-                        message: 'Your registration for "Cloud Computing Seminar" could not be processed. Please try again.',
-                        link: '/events/5'
-                    }
-                ]
+                }
             };
 
-            // Select a random template for the chosen type
-            const template = templates[type][Math.floor(Math.random() * templates[type].length)];
+            // Set up periodic simulation (every 3-7 minutes)
+            const intervalTime = Math.floor(Math.random() * 240000) + 180000; // 3-7 minutes
+            const simulationInterval = setInterval(simulatePeriodicNotification, intervalTime);
 
-            return {
-                id,
-                type,
-                timestamp: new Date().toISOString(),
-                read: false,
-                important: Math.random() > 0.7, // 30% chance of being important
-                ...template
+            return () => {
+                clearInterval(simulationInterval);
+                if (process.env.NODE_ENV === 'development') {
+                    delete window.triggerTestNotification;
+                }
             };
-        };
-
-        // Simulate a new notification on component mount
-        // (but only with a 30% chance to avoid spamming)
-        if (Math.random() < 0.3) {
-            const initialDelay = Math.floor(Math.random() * 10000) + 5000; // Random delay between 5s and 15s
-            const initialTimer = setTimeout(() => {
-                processNewNotification(generateRandomNotification());
-            }, initialDelay);
-
-            return () => clearTimeout(initialTimer);
+        } else {
+            // In production mode, the WebSocket connection handles everything
+            // Real-time notifications will come through the actual WebSocket
+            console.log('Real-time notifications active via WebSocket');
         }
 
-        // Set up periodic interval for future notifications
-        const intervalId = setInterval(() => {
-            // Only show new notification with 30% probability to avoid spamming
-            if (Math.random() < 0.3) {
-                processNewNotification(generateRandomNotification());
-            }
-        }, simulateInterval);
+    }, [isAuthenticated, currentUser, wsConnection, processNewNotification]);
 
-        return () => clearInterval(intervalId);
-    }, [isAuthenticated, processNewNotification]);
+    // Listen for browser visibility changes to handle notification behavior
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && isAuthenticated) {
+                // When tab becomes active, we could trigger a sync
+                // This is handled in the NotificationContext
+                console.log('Tab became active - notification sync may occur');
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [isAuthenticated]);
+
+    // Listen for online/offline events
+    useEffect(() => {
+        const handleOnline = () => {
+            console.log('Connection restored - WebSocket will reconnect automatically');
+        };
+
+        const handleOffline = () => {
+            console.log('Connection lost - notifications will be queued');
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     // This component doesn't render anything
     return null;
 };
 
 export default NotificationListener;
-

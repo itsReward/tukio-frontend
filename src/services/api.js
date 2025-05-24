@@ -1,6 +1,7 @@
-// api.js - Updated with mock API support
+// Updated api.js to include notification endpoints
 import axios from 'axios';
 import mockApi from './mockApi';
+import mockNotificationApi from './mockNotificationApi';
 
 // Helper to get mock mode status from context/localStorage
 const isMockMode = () => localStorage.getItem('useMockApi') === 'true';
@@ -35,34 +36,26 @@ axiosInstance.interceptors.response.use(
     (error) => {
         // Handle specific error codes
         if (error.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
             switch (error.response.status) {
                 case 401:
-                    // Unauthorized - clear token and redirect to login
                     localStorage.removeItem('token');
                     window.location.href = '/login';
                     break;
                 case 403:
-                    // Forbidden - user doesn't have the right permissions
                     console.error('You do not have permission to access this resource');
                     break;
                 case 404:
-                    // Not found
                     console.error('Resource not found');
                     break;
                 case 500:
-                    // Server error
                     console.error('An error occurred on the server');
                     break;
                 default:
                     console.error(`Error ${error.response.status}: ${error.response.data.message}`);
             }
         } else if (error.request) {
-            // The request was made but no response was received
             console.error('No response received from the server');
         } else {
-            // Something happened in setting up the request that triggered an Error
             console.error('Error setting up the request:', error.message);
         }
 
@@ -74,12 +67,82 @@ axiosInstance.interceptors.response.use(
 const api = {
     get: async (url, config) => {
         if (isMockMode()) {
-            // Extract endpoint name for mock API mapping
-            const endpoint = url.split('/')[1]; // e.g., 'users', 'events'
-            const id = url.split('/')[2]; // e.g., '123'
+            // Extract endpoint parts for mock API mapping
+            const urlParts = url.split('/');
+            const baseEndpoint = urlParts[1]; // e.g., 'notifications', 'notification-preferences'
 
-            // Map URL patterns to mock API functions
             try {
+                // ========== Notification Endpoints ==========
+                if (url.startsWith('tukio-notification-service/api/notifications')) {
+
+                    // Parse notification endpoints
+                    if (url.match(/\/notifications\/user\/\d+$/)) {
+                        const userId = url.match(/\/user\/(\d+)$/)[1];
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const options = {
+                            status: params.get('status'),
+                            channel: params.get('channel'),
+                            page: parseInt(params.get('page')) || 0,
+                            size: parseInt(params.get('size')) || 10,
+                            sort: params.get('sort') || 'createdAt,desc'
+                        };
+                        return mockNotificationApi.getUserNotifications(userId, options);
+                    }
+
+                    if (url.match(/\/notifications\/user\/\d+\/unread-count$/)) {
+                        const userId = url.match(/\/user\/(\d+)\/unread-count$/)[1];
+                        return mockNotificationApi.getUnreadCount(userId);
+                    }
+
+                    if (url.match(/\/notifications\/\d+$/)) {
+                        const notificationId = url.match(/\/notifications\/(\d+)$/)[1];
+                        return mockNotificationApi.getNotificationById(notificationId);
+                    }
+
+                    if (url === 'tukio-notification-service/api/notifications/me') {
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const options = {
+                            status: params.get('status'),
+                            channel: params.get('channel') || 'IN_APP',
+                            page: parseInt(params.get('page')) || 0,
+                            size: parseInt(params.get('size')) || 10,
+                            sort: params.get('sort') || 'createdAt,desc'
+                        };
+                        return mockNotificationApi.getUserNotifications(1, options); // Mock user ID 1
+                    }
+                }
+
+                // ========== Notification Preferences Endpoints ==========
+                if (url.startsWith('tukio-notification-service/api/notification-preferences')) {
+
+                    if (url.match(/\/notification-preferences\/user\/\d+$/)) {
+                        const userId = url.match(/\/user\/(\d+)$/)[1];
+                        return mockNotificationApi.getUserPreferences(userId);
+                    }
+
+                    if (url.match(/\/notification-preferences\/user\/\d+\/type\/\w+$/)) {
+                        const matches = url.match(/\/user\/(\d+)\/type\/(\w+)$/);
+                        const userId = matches[1];
+                        const notificationType = matches[2];
+                        return mockNotificationApi.getSpecificPreference(userId, notificationType);
+                    }
+                }
+
+                // ========== Template Endpoints ==========
+                if (url.startsWith('tukio-notification-service/api/notification-templates')) {
+
+                    if (url === 'tukio-notification-service/api/notification-templates') {
+                        return mockNotificationApi.getAllTemplates();
+                    }
+
+                    if (url.match(/\/notification-templates\/channel\/\w+$/)) {
+                        const channel = url.match(/\/channel\/(\w+)$/)[1];
+                        return mockNotificationApi.getTemplatesByChannel(channel);
+                    }
+                }
+
+                // ========== Existing Event/User Endpoints ==========
+                // Keep existing mock API mappings for events, users, etc.
                 if (url.startsWith('/api/auth/login')) {
                     return mockApi.login(config.data);
                 } else if (url.startsWith('/api/auth/register')) {
@@ -89,57 +152,61 @@ const api = {
                 } else if (url === '/api/users/me') {
                     return mockApi.getCurrentUser();
                 } else if (url.match(/^\/api\/users\/\d+$/)) {
+                    const id = url.split('/')[3];
                     return mockApi.getUserById(id);
                 } else if (url === '/api/events') {
                     return mockApi.getAllEvents();
                 } else if (url.match(/^\/api\/events\/\d+$/)) {
+                    const id = url.split('/')[3];
                     return mockApi.getEventById(id);
                 } else if (url === '/api/events/upcoming') {
                     return mockApi.getUpcomingEvents();
                 } else if (url.match(/^\/api\/events\/organizer\/\d+$/)) {
-                    const organizerId = url.split('/')[3];
+                    const organizerId = url.split('/')[4];
                     return mockApi.getEventsByOrganizer(organizerId);
                 } else if (url.match(/^\/api\/events\/category\/\d+$/)) {
-                    const categoryId = url.split('/')[3];
+                    const categoryId = url.split('/')[4];
                     return mockApi.getEventsByCategory(categoryId);
                 } else if (url === '/api/events/search') {
                     return mockApi.searchEvents(config.params || {});
                 } else if (url === '/api/event-categories') {
                     return mockApi.getAllCategories();
                 } else if (url.match(/^\/api\/event-categories\/\d+$/)) {
+                    const id = url.split('/')[3];
                     return mockApi.getCategoryById(id);
                 } else if (url.match(/^\/api\/event-registrations\/user\/\d+$/)) {
-                    const userId = url.split('/')[3];
+                    const userId = url.split('/')[4];
                     return mockApi.getRegistrationsByUser(userId);
                 } else if (url.match(/^\/api\/event-registrations\/event\/\d+$/)) {
-                    const eventId = url.split('/')[3];
+                    const eventId = url.split('/')[4];
                     return mockApi.getRegistrationsByEvent(eventId);
                 } else if (url === '/api/venues') {
                     return mockApi.getAllVenues();
                 } else if (url.match(/^\/api\/venues\/\d+$/)) {
+                    const id = url.split('/')[3];
                     return mockApi.getVenueById(id);
                 } else if (url.match(/^\/api\/gamification\/profile\/\d+$/)) {
-                    const userId = url.split('/')[3];
+                    const userId = url.split('/')[4];
                     return mockApi.getUserGamificationProfile(userId);
                 } else if (url.match(/^\/api\/points\/users\/\d+$/)) {
-                    const userId = url.split('/')[3];
+                    const userId = url.split('/')[4];
                     return mockApi.getUserPoints(userId);
                 } else if (url.match(/^\/api\/points\/users\/\d+\/transactions$/)) {
-                    const userId = url.split('/')[3];
+                    const userId = url.split('/')[4];
                     const page = config.params?.page || 0;
                     const size = config.params?.size || 10;
                     return mockApi.getUserTransactions(userId, page, size);
                 } else if (url === '/api/badges') {
                     return mockApi.getAllBadges();
                 } else if (url.match(/^\/api\/badges\/user\/\d+$/)) {
-                    const userId = url.split('/')[3];
+                    const userId = url.split('/')[4];
                     return mockApi.getUserBadges(userId);
                 } else if (url.match(/^\/api\/badges\/user\/\d+\/recent$/)) {
-                    const userId = url.split('/')[3];
+                    const userId = url.split('/')[4];
                     const limit = config.params?.limit || 5;
                     return mockApi.getRecentUserBadges(userId, limit);
                 } else if (url.match(/^\/api\/gamification\/users\/\d+\/stats$/)) {
-                    const userId = url.split('/')[3];
+                    const userId = url.split('/')[4];
                     return mockApi.getUserActivityStats(userId);
                 } else if (url.match(/^\/api\/leaderboards\/top\/weekly$/)) {
                     const limit = config.params?.limit || 10;
@@ -150,17 +217,6 @@ const api = {
                 } else if (url.match(/^\/api\/leaderboards\/top\/all-time$/)) {
                     const limit = config.params?.limit || 10;
                     return mockApi.getTopUsersAllTime(limit);
-                } else if (url.startsWith('/api/notifications/me')) {
-                    const page = config.params?.page || 0;
-                    const size = config.params?.size || 10;
-                    return mockNotificationApi.getUserNotifications(page, size);
-                } else if (url.match(/^\/api\/notifications\/\d+$/)) {
-                    const id = url.split('/')[2];
-                    return mockNotificationApi.getNotificationById(id);
-                } else if (url === '/api/notifications/unread-count') {
-                    return mockNotificationApi.getUnreadCount();
-                } else if (url === '/api/notification-preferences') {
-                    return mockNotificationApi.getNotificationPreferences();
                 }
 
                 // Default case - not implemented in mock
@@ -179,6 +235,17 @@ const api = {
     post: async (url, data, config) => {
         if (isMockMode()) {
             try {
+                // ========== Notification Endpoints ==========
+                if (url === 'tukio-notification-service/api/notifications') {
+                    return mockNotificationApi.createNotification(data);
+                }
+
+                if (url.match(/\/notification-preferences\/user\/\d+\/initialize$/)) {
+                    const userId = url.match(/\/user\/(\d+)\/initialize$/)[1];
+                    return mockNotificationApi.initializeDefaultPreferences(userId);
+                }
+
+                // ========== Existing Event/User Endpoints ==========
                 if (url.startsWith('/api/auth/login')) {
                     return mockApi.login(data);
                 } else if (url.startsWith('/api/auth/register')) {
@@ -190,28 +257,23 @@ const api = {
                 } else if (url === '/api/event-registrations/register') {
                     return mockApi.registerForEvent(data);
                 } else if (url.match(/^\/api\/gamification\/events\/\d+\/register$/)) {
-                    const eventId = url.split('/')[3];
+                    const eventId = url.split('/')[4];
                     const userId = new URLSearchParams(url.split('?')[1]).get('userId');
                     return mockApi.recordEventRegistration(userId, eventId);
                 } else if (url.match(/^\/api\/gamification\/events\/\d+\/attend$/)) {
-                    const eventId = url.split('/')[3];
+                    const eventId = url.split('/')[4];
                     const userId = new URLSearchParams(url.split('?')[1]).get('userId');
                     return mockApi.recordEventAttendance(userId, eventId);
                 } else if (url.match(/^\/api\/gamification\/events\/\d+\/rate$/)) {
-                    const eventId = url.split('/')[3];
+                    const eventId = url.split('/')[4];
                     const urlParams = new URLSearchParams(url.split('?')[1]);
                     const userId = urlParams.get('userId');
                     const rating = urlParams.get('rating');
                     return mockApi.recordEventRating(userId, eventId, rating);
                 } else if (url.match(/^\/api\/gamification\/events\/\d+\/share$/)) {
-                    const eventId = url.split('/')[3];
+                    const eventId = url.split('/')[4];
                     const userId = new URLSearchParams(url.split('?')[1]).get('userId');
                     return mockApi.recordEventSharing(userId, eventId);
-                }else if (url === '/api/notifications') {
-                    return mockNotificationApi.sendNotification(data);
-                } else if (url.match(/^\/api\/notifications\/subscribe\/event\/\d+$/)) {
-                    const eventId = url.split('/')[4];
-                    return mockNotificationApi.subscribeToEvent(eventId);
                 }
 
                 // Default case - not implemented in mock
@@ -229,18 +291,27 @@ const api = {
     put: async (url, data, config) => {
         if (isMockMode()) {
             try {
+                // ========== Notification Endpoints ==========
+                if (url.match(/\/notifications\/\d+\/read\?userId=\d+$/)) {
+                    const matches = url.match(/\/notifications\/(\d+)\/read\?userId=(\d+)$/);
+                    const notificationId = matches[1];
+                    const userId = matches[2];
+                    return mockNotificationApi.markAsRead(notificationId, userId);
+                }
+
+                if (url.match(/\/notification-preferences\/user\/\d+\/type\/\w+$/)) {
+                    const matches = url.match(/\/user\/(\d+)\/type\/(\w+)$/);
+                    const userId = matches[1];
+                    const notificationType = matches[2];
+                    return mockNotificationApi.updatePreference(userId, notificationType, data);
+                }
+
+                // ========== Existing Event/User Endpoints ==========
                 if (url.match(/^\/api\/users\/\d+$/)) {
                     return mockApi.updateUserProfile(data);
                 } else if (url.match(/^\/api\/events\/\d+$/)) {
-                    const id = url.split('/')[2];
+                    const id = url.split('/')[3];
                     return mockApi.updateEvent(id, data);
-                }else if (url.match(/^\/api\/notifications\/\d+\/read$/)) {
-                    const id = url.split('/')[2];
-                    return mockNotificationApi.markAsRead(id);
-                } else if (url === '/api/notifications/mark-all-read') {
-                    return mockNotificationApi.markAllAsRead();
-                } else if (url === '/api/notification-preferences') {
-                    return mockNotificationApi.updatePreferences(data);
                 }
 
                 // Default case - not implemented in mock
@@ -258,17 +329,18 @@ const api = {
     delete: async (url, config) => {
         if (isMockMode()) {
             try {
+                // ========== Notification Endpoints ==========
+                if (url.match(/\/notifications\/\d+\?userId=\d+$/)) {
+                    const matches = url.match(/\/notifications\/(\d+)\?userId=(\d+)$/);
+                    const notificationId = matches[1];
+                    const userId = matches[2];
+                    return mockNotificationApi.deleteNotification(notificationId, userId);
+                }
+
+                // ========== Existing Event/User Endpoints ==========
                 if (url.match(/^\/api\/events\/\d+$/)) {
-                    const id = url.split('/')[2];
+                    const id = url.split('/')[3];
                     return mockApi.deleteEvent(id);
-                } else if (url.match(/^\/api\/notifications\/\d+$/)) {
-                    const id = url.split('/')[2];
-                    return mockNotificationApi.deleteNotification(id);
-                } else if (url === '/api/notifications/clear-all') {
-                    return mockNotificationApi.clearAllNotifications();
-                } else if (url.match(/^\/api\/notifications\/subscribe\/event\/\d+$/)) {
-                    const eventId = url.split('/')[4];
-                    return mockNotificationApi.unsubscribeFromEvent(eventId);
                 }
 
                 // Default case - not implemented in mock

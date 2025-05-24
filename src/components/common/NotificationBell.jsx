@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Transition } from '@headlessui/react';
+import { Transition } from '@headlessui/react';
 import { BellIcon, CheckIcon, TrashIcon, BellSlashIcon } from '@heroicons/react/24/outline';
-import { format, formatDistance } from 'date-fns';
+import { formatDistance } from 'date-fns';
 import { useNotifications } from '../../contexts/NotificationContext';
 
 const NotificationBell = () => {
     const {
-        notifications,
-        unreadCount,
-        loading,
+        notifications = [],
+        unreadCount = 0,
+        loading = false,
         markAsRead,
-        markAllAsRead,
         deleteNotification,
-        clearAllNotifications,
-        fetchNotifications
+        fetchNotifications,
+        getNotificationColor
     } = useNotifications();
 
     const [isOpen, setIsOpen] = useState(false);
@@ -22,8 +21,8 @@ const NotificationBell = () => {
 
     // Load notifications when menu is opened
     useEffect(() => {
-        if (isOpen) {
-            fetchNotifications(0, 5);
+        if (isOpen && fetchNotifications) {
+            fetchNotifications({ page: 0, size: 5 });
         }
     }, [isOpen, fetchNotifications]);
 
@@ -39,57 +38,84 @@ const NotificationBell = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Get relative time
+    // Get relative time with error handling
     const getRelativeTime = (date) => {
         try {
+            if (!date) return 'Recently';
             return formatDistance(new Date(date), new Date(), { addSuffix: true });
         } catch (error) {
             console.error('Date formatting error:', error);
-            return date;
+            return 'Recently';
         }
     };
 
     // Handle notification click
     const handleNotificationClick = (notification) => {
-        if (!notification.read) {
+        if (!notification.readAt && markAsRead) {
             markAsRead(notification.id);
         }
 
         // Close the menu
         setIsOpen(false);
-
-        // If there's a link, the actual navigation will be handled by the Link component
     };
 
-    // Get icon and color based on notification type
-    const getNotificationStyles = (type) => {
-        switch(type) {
-            case 'success':
+    // Get icon and styles based on notification type with fallback
+    const getNotificationStyles = (notificationType) => {
+        const color = getNotificationColor ? getNotificationColor(notificationType) : '#3B82F6';
+
+        switch(notificationType) {
+            case 'EVENT_REGISTRATION':
                 return {
                     bgColor: 'bg-success-100',
                     textColor: 'text-success-800',
-                    icon: CheckIcon
+                    icon: CheckIcon,
+                    borderColor: color
                 };
-            case 'warning':
+            case 'EVENT_REMINDER':
                 return {
-                    bgColor: 'bg-warning-100',
-                    textColor: 'text-warning-800',
-                    icon: BellIcon
+                    bgColor: 'bg-blue-100',
+                    textColor: 'text-blue-800',
+                    icon: BellIcon,
+                    borderColor: color
                 };
-            case 'error':
+            case 'EVENT_CANCELLATION':
                 return {
-                    bgColor: 'bg-accent-100',
-                    textColor: 'text-accent-800',
-                    icon: BellSlashIcon
+                    bgColor: 'bg-red-100',
+                    textColor: 'text-red-800',
+                    icon: BellSlashIcon,
+                    borderColor: color
                 };
-            case 'info':
+            case 'EVENT_UPDATE':
+            case 'VENUE_CHANGE':
+                return {
+                    bgColor: 'bg-yellow-100',
+                    textColor: 'text-yellow-800',
+                    icon: BellIcon,
+                    borderColor: color
+                };
+            case 'SYSTEM_ANNOUNCEMENT':
+                return {
+                    bgColor: 'bg-purple-100',
+                    textColor: 'text-purple-800',
+                    icon: BellIcon,
+                    borderColor: color
+                };
             default:
                 return {
                     bgColor: 'bg-primary-100',
                     textColor: 'text-primary-800',
-                    icon: BellIcon
+                    icon: BellIcon,
+                    borderColor: color
                 };
         }
+    };
+
+    // Generate link for notification based on reference
+    const getNotificationLink = (notification) => {
+        if (notification.referenceType === 'EVENT' && notification.referenceId) {
+            return `/events/${notification.referenceId}`;
+        }
+        return null;
     };
 
     return (
@@ -121,26 +147,13 @@ const NotificationBell = () => {
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold text-neutral-900">Notifications</h3>
                             <div className="flex space-x-2">
-                                {unreadCount > 0 && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            markAllAsRead();
-                                        }}
-                                        className="text-sm text-primary-600 hover:text-primary-800"
-                                    >
-                                        Mark all as read
-                                    </button>
-                                )}
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        clearAllNotifications();
-                                    }}
-                                    className="text-sm text-neutral-600 hover:text-neutral-800"
+                                <Link
+                                    to="/notifications"
+                                    className="text-sm text-primary-600 hover:text-primary-800"
+                                    onClick={() => setIsOpen(false)}
                                 >
-                                    Clear all
-                                </button>
+                                    View all
+                                </Link>
                             </div>
                         </div>
                     </div>
@@ -161,11 +174,16 @@ const NotificationBell = () => {
                         ) : (
                             <ul className="divide-y divide-neutral-200">
                                 {notifications.map((notification) => {
-                                    const { bgColor, textColor, icon: NotificationIcon } = getNotificationStyles(notification.type);
+                                    const { bgColor, textColor, icon: NotificationIcon, borderColor } = getNotificationStyles(notification.notificationType);
+                                    const notificationLink = getNotificationLink(notification);
+                                    const isUnread = !notification.readAt;
 
                                     const NotificationContent = (
                                         <div
-                                            className={`px-4 py-3 transition-colors duration-200 ${notification.read ? 'bg-white' : 'bg-neutral-50'}`}
+                                            className={`px-4 py-3 transition-colors duration-200 ${
+                                                isUnread ? 'bg-neutral-50 border-l-4' : 'bg-white'
+                                            } hover:bg-neutral-50`}
+                                            style={isUnread ? { borderLeftColor: borderColor } : {}}
                                             onClick={() => handleNotificationClick(notification)}
                                         >
                                             <div className="flex items-start">
@@ -173,37 +191,48 @@ const NotificationBell = () => {
                                                     <NotificationIcon className="h-5 w-5" />
                                                 </div>
                                                 <div className="ml-3 flex-1">
-                                                    <div className="text-sm font-medium text-neutral-900">
-                                                        {notification.title}
+                                                    <div className={`text-sm font-medium ${isUnread ? 'text-neutral-900' : 'text-neutral-700'}`}>
+                                                        {notification.title || 'Notification'}
                                                     </div>
                                                     <p className="mt-1 text-sm text-neutral-600 line-clamp-2">
-                                                        {notification.message}
+                                                        {notification.content || 'No content available'}
                                                     </p>
                                                     <div className="mt-1 flex items-center justify-between">
-                                                        <span className="text-xs text-neutral-500">
-                                                            {getRelativeTime(notification.timestamp)}
-                                                        </span>
+                                                        <div className="flex items-center space-x-2">
+                                                            <span className="text-xs text-neutral-500">
+                                                                {getRelativeTime(notification.createdAt)}
+                                                            </span>
+                                                            {notification.notificationType && (
+                                                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${bgColor} ${textColor}`}>
+                                                                    {notification.notificationType.replace('_', ' ').toLowerCase()}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <div className="flex space-x-2">
-                                                            {!notification.read && (
+                                                            {isUnread && markAsRead && (
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         markAsRead(notification.id);
                                                                     }}
                                                                     className="text-xs text-primary-600 hover:text-primary-800"
+                                                                    title="Mark as read"
                                                                 >
-                                                                    Mark as read
+                                                                    <CheckIcon className="h-3.5 w-3.5" />
                                                                 </button>
                                                             )}
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    deleteNotification(notification.id);
-                                                                }}
-                                                                className="text-xs text-neutral-500 hover:text-neutral-700"
-                                                            >
-                                                                <TrashIcon className="h-3.5 w-3.5" />
-                                                            </button>
+                                                            {deleteNotification && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        deleteNotification(notification.id);
+                                                                    }}
+                                                                    className="text-xs text-neutral-500 hover:text-neutral-700"
+                                                                    title="Delete notification"
+                                                                >
+                                                                    <TrashIcon className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -214,8 +243,8 @@ const NotificationBell = () => {
                                     // Wrap in Link if the notification has a link
                                     return (
                                         <li key={notification.id}>
-                                            {notification.link ? (
-                                                <Link to={notification.link} className="block hover:bg-neutral-50">
+                                            {notificationLink ? (
+                                                <Link to={notificationLink} className="block">
                                                     {NotificationContent}
                                                 </Link>
                                             ) : (

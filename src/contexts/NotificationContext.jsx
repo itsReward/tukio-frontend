@@ -10,32 +10,64 @@ export const NotificationProvider = ({ children }) => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [preferences, setPreferences] = useState({
-        emailNotifications: true,
-        pushNotifications: true,
-        eventReminders: true,
-        eventUpdates: true,
-        eventCancellations: true,
-        newMessages: true,
-        systemAnnouncements: true,
-        marketingCommunications: false
-    });
+    const [preferences, setPreferences] = useState([]);
+    const [wsConnection, setWsConnection] = useState(null);
+    const [connectionState, setConnectionState] = useState('disconnected');
     const { isAuthenticated, currentUser } = useAuth();
 
-    // Fetch notifications when user authenticates
+    // Initialize WebSocket connection when user authenticates
     useEffect(() => {
         if (isAuthenticated && currentUser?.id) {
+            initializeConnection();
             fetchNotifications();
             fetchUnreadCount();
             fetchPreferences();
         } else {
             // Reset state when logged out
+            cleanupConnection();
             setNotifications([]);
             setUnreadCount(0);
+            setPreferences([]);
         }
+
+        return () => {
+            cleanupConnection();
+        };
     }, [isAuthenticated, currentUser]);
 
-    // Poll for new notifications every minute
+    // Initialize WebSocket connection
+    const initializeConnection = useCallback(() => {
+        try {
+            const connection = notificationService.initializeWebSocket(
+                (notification) => {
+                    processNewNotification(notification);
+                },
+                (state, data) => {
+                    setConnectionState(state);
+                    console.log('WebSocket state changed:', state, data);
+                }
+            );
+            setWsConnection(connection);
+        } catch (error) {
+            console.error('Failed to initialize WebSocket connection:', error);
+            setConnectionState('error');
+        }
+    }, []);
+
+    // Cleanup WebSocket connection
+    const cleanupConnection = useCallback(() => {
+        if (wsConnection) {
+            try {
+                wsConnection.disconnect();
+            } catch (error) {
+                console.error('Error disconnecting WebSocket:', error);
+            }
+            setWsConnection(null);
+        }
+        setConnectionState('disconnected');
+    }, [wsConnection]);
+
+    // Poll for new notifications every minute (fallback for WebSocket)
     useEffect(() => {
         if (!isAuthenticated) return;
 
@@ -60,19 +92,27 @@ export const NotificationProvider = ({ children }) => {
         };
     }, [isAuthenticated]);
 
-    // Function to fetch user notifications
-    const fetchNotifications = useCallback(async (page = 0, size = 10) => {
-        if (!isAuthenticated) return;
+    // Function to fetch user notifications with enhanced options
+    const fetchNotifications = useCallback(async (options = {}) => {
+        if (!isAuthenticated || !currentUser?.id) return;
 
         try {
             setLoading(true);
             setError(null);
-            const response = await notificationService.getUserNotifications(page, size);
+
+            const response = await notificationService.getUserNotifications(currentUser.id, {
+                page: 0,
+                size: 10,
+                channel: 'IN_APP', // Only fetch in-app notifications for the UI
+                sort: 'createdAt,desc',
+                ...options
+            });
+
             setNotifications(prev => {
-                if (page === 0) {
-                    return response.data.content;
+                if (options.page === 0 || !options.page) {
+                    return response.data.content || [];
                 } else {
-                    return [...prev, ...response.data.content];
+                    return [...prev, ...(response.data.content || [])];
                 }
             });
         } catch (err) {
@@ -81,42 +121,52 @@ export const NotificationProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, currentUser]);
 
     // Function to fetch unread notification count
     const fetchUnreadCount = useCallback(async () => {
-        if (!isAuthenticated) return;
+        if (!isAuthenticated || !currentUser?.id) return;
 
         try {
-            const response = await notificationService.getUnreadCount();
-            setUnreadCount(response.data);
+            const response = await notificationService.getUnreadCount(currentUser.id);
+            setUnreadCount(response.data.count || 0);
         } catch (err) {
             console.error('Error fetching unread count:', err);
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, currentUser]);
 
     // Function to fetch notification preferences
     const fetchPreferences = useCallback(async () => {
-        if (!isAuthenticated) return;
+        if (!isAuthenticated || !currentUser?.id) return;
 
         try {
-            const response = await notificationService.getNotificationPreferences();
-            setPreferences(response.data);
+            const response = await notificationService.getUserPreferences(currentUser.id);
+            setPreferences(response.data || []);
         } catch (err) {
             console.error('Error fetching notification preferences:', err);
+            // If preferences don't exist, initialize default ones
+            try {
+                await notificationService.initializeDefaultPreferences(currentUser.id);
+                const newResponse = await notificationService.getUserPreferences(currentUser.id);
+                setPreferences(newResponse.data || []);
+            } catch (initError) {
+                console.error('Error initializing default preferences:', initError);
+            }
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, currentUser]);
 
     // Function to mark a notification as read
     const markAsRead = useCallback(async (notificationId) => {
+        if (!currentUser?.id) return;
+
         try {
-            await notificationService.markAsRead(notificationId);
+            await notificationService.markAsRead(notificationId, currentUser.id);
 
             // Update local state
             setNotifications(prev =>
                 prev.map(notification =>
                     notification.id === notificationId
-                        ? { ...notification, read: true }
+                        ? { ...notification, readAt: new Date().toISOString() }
                         : notification
                 )
             );
@@ -126,35 +176,19 @@ export const NotificationProvider = ({ children }) => {
             console.error('Error marking notification as read:', err);
             toast.error('Failed to mark notification as read');
         }
-    }, []);
-
-    // Function to mark all notifications as read
-    const markAllAsRead = useCallback(async () => {
-        try {
-            await notificationService.markAllAsRead();
-
-            // Update local state
-            setNotifications(prev =>
-                prev.map(notification => ({ ...notification, read: true }))
-            );
-
-            setUnreadCount(0);
-            toast.success('All notifications marked as read');
-        } catch (err) {
-            console.error('Error marking all notifications as read:', err);
-            toast.error('Failed to mark all notifications as read');
-        }
-    }, []);
+    }, [currentUser]);
 
     // Function to delete a notification
     const deleteNotification = useCallback(async (notificationId) => {
+        if (!currentUser?.id) return;
+
         try {
-            await notificationService.deleteNotification(notificationId);
+            await notificationService.deleteNotification(notificationId, currentUser.id);
 
             // Update local state
             setNotifications(prev => {
                 const notification = prev.find(n => n.id === notificationId);
-                const isUnread = notification && !notification.read;
+                const isUnread = notification && !notification.readAt;
 
                 if (isUnread) {
                     setUnreadCount(count => Math.max(0, count - 1));
@@ -168,78 +202,92 @@ export const NotificationProvider = ({ children }) => {
             console.error('Error deleting notification:', err);
             toast.error('Failed to delete notification');
         }
-    }, []);
-
-    // Function to clear all notifications
-    const clearAllNotifications = useCallback(async () => {
-        try {
-            await notificationService.clearAllNotifications();
-
-            // Update local state
-            setNotifications([]);
-            setUnreadCount(0);
-            toast.success('All notifications cleared');
-        } catch (err) {
-            console.error('Error clearing notifications:', err);
-            toast.error('Failed to clear notifications');
-        }
-    }, []);
+    }, [currentUser]);
 
     // Function to update notification preferences
-    const updatePreferences = useCallback(async (updatedPreferences) => {
+    const updatePreferences = useCallback(async (notificationType, updatedPreferences) => {
+        if (!currentUser?.id) return;
+
         try {
-            await notificationService.updatePreferences(updatedPreferences);
-            setPreferences(updatedPreferences);
+            const response = await notificationService.updatePreference(
+                currentUser.id,
+                notificationType,
+                updatedPreferences
+            );
+
+            // Update local state
+            setPreferences(prev =>
+                prev.map(pref =>
+                    pref.notificationType === notificationType
+                        ? response.data
+                        : pref
+                )
+            );
+
             toast.success('Notification preferences updated');
         } catch (err) {
             console.error('Error updating notification preferences:', err);
             toast.error('Failed to update notification preferences');
         }
-    }, []);
+    }, [currentUser]);
 
-    // Function to subscribe to event notifications
-    const subscribeToEvent = useCallback(async (eventId) => {
-        try {
-            await notificationService.subscribeToEvent(eventId);
-            toast.success('Subscribed to event notifications');
-        } catch (err) {
-            console.error('Error subscribing to event:', err);
-            toast.error('Failed to subscribe to event notifications');
-        }
-    }, []);
+    // Function to update all preferences at once
+    const updateAllPreferences = useCallback(async (preferencesArray) => {
+        if (!currentUser?.id) return;
 
-    // Function to unsubscribe from event notifications
-    const unsubscribeFromEvent = useCallback(async (eventId) => {
         try {
-            await notificationService.unsubscribeFromEvent(eventId);
-            toast.success('Unsubscribed from event notifications');
+            const updatePromises = preferencesArray.map(pref =>
+                notificationService.updatePreference(
+                    currentUser.id,
+                    pref.notificationType,
+                    {
+                        emailEnabled: pref.emailEnabled,
+                        pushEnabled: pref.pushEnabled,
+                        inAppEnabled: pref.inAppEnabled
+                    }
+                )
+            );
+
+            await Promise.all(updatePromises);
+
+            // Refresh preferences from server
+            await fetchPreferences();
+
+            toast.success('All notification preferences updated');
         } catch (err) {
-            console.error('Error unsubscribing from event:', err);
-            toast.error('Failed to unsubscribe from event notifications');
+            console.error('Error updating all notification preferences:', err);
+            toast.error('Failed to update notification preferences');
         }
-    }, []);
+    }, [currentUser, fetchPreferences]);
 
     // Process new notification - used for real-time notifications
     const processNewNotification = useCallback((notification) => {
+        // Only process in-app notifications for the UI
+        if (notification.channel !== 'IN_APP') return;
+
         // Add notification to state
         setNotifications(prev => [notification, ...prev]);
 
-        // Update unread count
-        if (!notification.read) {
+        // Update unread count if not read
+        if (!notification.readAt) {
             setUnreadCount(prev => prev + 1);
         }
 
         // Show toast for important notifications
-        if (notification.important) {
+        const isImportant = ['EVENT_CANCELLATION', 'VENUE_CHANGE', 'SYSTEM_ANNOUNCEMENT'].includes(notification.notificationType);
+
+        if (isImportant) {
             toast((t) => (
                 <div className="flex items-start">
                     <div className="flex-grow">
                         <p className="font-medium">{notification.title}</p>
-                        <p className="text-sm">{notification.message}</p>
+                        <p className="text-sm">{notification.content}</p>
                     </div>
                     <button
                         onClick={() => {
-                            markAsRead(notification.id);
+                            if (!notification.readAt) {
+                                markAsRead(notification.id);
+                            }
                             toast.dismiss(t.id);
                         }}
                         className="ml-4 text-primary-600 hover:text-primary-800 text-sm font-medium"
@@ -248,18 +296,56 @@ export const NotificationProvider = ({ children }) => {
                     </button>
                 </div>
             ), {
-                duration: 5000,
+                duration: 8000,
                 style: {
-                    borderLeft: `4px solid ${
-                        notification.type === 'success' ? '#10B981' :
-                            notification.type === 'warning' ? '#F59E0B' :
-                                notification.type === 'error' ? '#EF4444' : '#3B82F6'
-                    }`,
+                    borderLeft: `4px solid ${getNotificationColor(notification.notificationType)}`,
                     padding: '16px'
                 }
             });
         }
     }, [markAsRead]);
+
+    // Get notification color based on type
+    const getNotificationColor = useCallback((notificationType) => {
+        switch (notificationType) {
+            case 'EVENT_REGISTRATION':
+                return '#10B981'; // success
+            case 'EVENT_REMINDER':
+                return '#3B82F6'; // info
+            case 'EVENT_CANCELLATION':
+                return '#EF4444'; // error
+            case 'EVENT_UPDATE':
+            case 'VENUE_CHANGE':
+                return '#F59E0B'; // warning
+            case 'SYSTEM_ANNOUNCEMENT':
+                return '#8B5CF6'; // purple
+            default:
+                return '#3B82F6'; // info
+        }
+    }, []);
+
+    // Helper function to get user preference for a specific notification type
+    const getPreferenceForType = useCallback((notificationType) => {
+        return preferences.find(pref => pref.notificationType === notificationType) || {
+            notificationType,
+            emailEnabled: true,
+            pushEnabled: true,
+            inAppEnabled: true
+        };
+    }, [preferences]);
+
+    // Send notification helper (for admin/organizer use)
+    const sendNotification = useCallback(async (notificationData) => {
+        try {
+            const response = await notificationService.createNotification(notificationData);
+            toast.success('Notification sent successfully');
+            return response;
+        } catch (err) {
+            console.error('Error sending notification:', err);
+            toast.error('Failed to send notification');
+            throw err;
+        }
+    }, []);
 
     // Context value
     const value = {
@@ -268,16 +354,28 @@ export const NotificationProvider = ({ children }) => {
         loading,
         error,
         preferences,
+        wsConnection,
+        connectionState,
+
+        // Core functions
         fetchNotifications,
         fetchUnreadCount,
         markAsRead,
-        markAllAsRead,
         deleteNotification,
-        clearAllNotifications,
+
+        // Preferences
         updatePreferences,
-        subscribeToEvent,
-        unsubscribeFromEvent,
-        processNewNotification
+        updateAllPreferences,
+        getPreferenceForType,
+
+        // Real-time
+        processNewNotification,
+
+        // Admin/Organizer functions
+        sendNotification,
+
+        // Helper functions
+        getNotificationColor
     };
 
     return (
