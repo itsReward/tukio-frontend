@@ -1,4 +1,4 @@
-// src/App.jsx - Updated with admin event management routes
+// src/App.jsx - Updated with complete admin functionality
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -32,9 +32,11 @@ import MyEventsPage from './pages/MyEventsPage.jsx';
 import SettingsPage from './pages/SettingsPage';
 
 // Admin Pages
+import AdminDashboardPageWrapper from './pages/AdminDashboardPageWrapper.jsx';
 import AdminVenuesPageWrapper from './pages/AdminVenuesPageWrapper.jsx';
 import VenueFormPage from './pages/VenueFormPage';
 import AdminEventsPageWrapper from './pages/AdminEventsPageWrapper.jsx';
+import AdminUsersPageWrapper from './pages/AdminUsersPageWrapper.jsx';
 import EventEditFormPage from './pages/EventEditFormPage.jsx';
 
 // Auth guards
@@ -84,6 +86,13 @@ function App() {
                                 {/* Admin-only protected routes */}
                                 <Route element={<AdminProtectedRoute />}>
                                     <Route element={<MainLayout />}>
+                                        {/* Admin Dashboard */}
+                                        <Route path="/admin" element={<AdminDashboardPageWrapper />} />
+                                        <Route path="/admin/dashboard" element={<AdminDashboardPageWrapper />} />
+
+                                        {/* User Management */}
+                                        <Route path="/admin/users" element={<AdminUsersPageWrapper />} />
+
                                         {/* Venue Management */}
                                         <Route path="/admin/venues" element={<AdminVenuesPageWrapper />} />
                                         <Route path="/admin/venues/create" element={<VenueFormPage />} />
@@ -92,6 +101,13 @@ function App() {
                                         {/* Event Management */}
                                         <Route path="/admin/events" element={<AdminEventsPageWrapper />} />
                                         <Route path="/admin/events/:id/edit" element={<EventEditFormPage />} />
+
+                                        {/* Analytics & Reports */}
+                                        <Route path="/admin/analytics" element={<AdminDashboardPageWrapper />} />
+                                        <Route path="/admin/reports" element={<AdminDashboardPageWrapper />} />
+
+                                        {/* System Settings */}
+                                        <Route path="/admin/settings" element={<AdminDashboardPageWrapper />} />
                                     </Route>
                                 </Route>
 

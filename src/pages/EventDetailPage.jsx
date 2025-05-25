@@ -26,6 +26,7 @@ import {
     ArrowLeftIcon,
     UserPlusIcon
 } from '@heroicons/react/24/outline';
+import RecommendationsWidget from "../components/common/RecommendationsWidget.jsx";
 
 const EventDetailPage = () => {
     const { id } = useParams();
@@ -651,35 +652,12 @@ const EventDetailPage = () => {
                             </motion.div>
                         )}
 
-                        {/* Similar Events Card */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.2 }}
-                            className="bg-white rounded-xl shadow-card border border-neutral-200 overflow-hidden"
-                        >
-                            <div className="p-5 border-b border-neutral-200">
-                                <h2 className="text-lg font-semibold text-neutral-900">You Might Also Like</h2>
-                            </div>
-                            <div className="p-5 divide-y divide-neutral-200">
-                                {/* This would be populated with actual similar events from an API */}
-                                {[1, 2, 3].map((item) => (
-                                    <div key={item} className={`${item !== 1 ? 'pt-4' : ''} ${item !== 3 ? 'pb-4' : ''}`}>
-                                        <Link to={`/events/${item}`} className="flex items-start hover:bg-neutral-50 p-2 rounded-lg transition-colors">
-                                            <div className="h-14 w-14 bg-neutral-200 rounded-lg flex-shrink-0 flex items-center justify-center">
-                                                <span className="text-neutral-500">📅</span>
-                                            </div>
-                                            <div className="ml-3">
-                                                <h3 className="text-sm font-medium text-neutral-900 hover:text-primary-600">
-                                                    Similar Event Title {item}
-                                                </h3>
-                                                <p className="text-xs text-neutral-500 mt-1">Tomorrow, 2:00 PM</p>
-                                            </div>
-                                        </Link>
-                                    </div>
-                                ))}
-                            </div>
-                        </motion.div>
+                        {/* Recommended Events */}
+                        <RecommendationsWidget
+                            userId={currentUser?.id}
+                            maxItems={3}
+                        />
+
                     </div>
                 </div>
             </div>

@@ -1,3 +1,4 @@
+// src/components/common/NavBar.jsx - Updated with admin panel access
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -6,10 +7,13 @@ import {
     Bars3Icon,
     XMarkIcon,
     BellIcon,
-    UserCircleIcon
+    UserCircleIcon,
+    Cog6ToothIcon,
+    ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import NotificationBell from './NotificationBell';
-import MockApiToggle from '../common/MockApiToggle'; // Import the MockApiToggle component
+import MockApiToggle from '../common/MockApiToggle';
+import AdminNavigation from '../admin/AdminNavigation';
 
 const NavBar = () => {
     const { isAuthenticated, currentUser, logout } = useAuth();
@@ -18,6 +22,7 @@ const NavBar = () => {
 
     // Check if current page is home page
     const isHomePage = location.pathname === '/';
+    const isAdminPage = location.pathname.startsWith('/admin');
 
     // Navigation links
     const navigation = [
@@ -25,14 +30,7 @@ const NavBar = () => {
         { name: 'Events', to: '/events', authenticated: false },
         { name: 'Venues', to: '/venues', authenticated: false },
         { name: 'Leaderboard', to: '/leaderboard', authenticated: false },
-        { name: 'Dashboard', to: '/dashboard', authenticated: true },
-        // Add admin navigation for admin users
-        {
-            name: 'Admin',
-            to: '/admin/venues',
-            authenticated: true,
-            adminOnly: true
-        },
+        { name: 'Dashboard', to: '/dashboard', authenticated: true }
     ];
 
     // User menu items
@@ -41,13 +39,13 @@ const NavBar = () => {
         { name: 'Settings', to: '/settings' },
         // Admin-specific navigation for admin users
         ...(currentUser?.roles?.includes('ADMIN') ? [
-            { name: 'Admin Panel', to: '/admin/venues', divider: true },
-            { name: 'Manage Venues', to: '/admin/venues' },
-            { name: 'Manage Events', to: '/admin/events' },
+            { name: 'Admin Panel', to: '/admin/dashboard', divider: true, icon: ShieldCheckIcon },
             { name: 'User Management', to: '/admin/users' },
+            { name: 'Event Management', to: '/admin/events' },
+            { name: 'Venue Management', to: '/admin/venues' },
+            { name: 'Analytics', to: '/admin/analytics' },
         ] : []),
-
-        { name: 'Logout', onClick: logout },
+        { name: 'Logout', onClick: logout, divider: true }
     ];
 
     // Check if the window has been scrolled
@@ -65,26 +63,17 @@ const NavBar = () => {
         };
     }, [scrolled]);
 
-    // Determine if a navigation item is active
-    const isActive = (path) => {
-        if (path === '/') {
-            return location.pathname === '/';
-        }
-        return location.pathname.startsWith(path);
-    };
-
     // Determine text color based on home page status and scroll position
     const textColorClass = (isHomePage && !scrolled) ? 'text-white' : 'text-neutral-600';
     const hoverTextColorClass = (isHomePage && !scrolled) ? 'hover:text-gray-200' : 'hover:text-neutral-800';
     const activeTextColorClass = (isHomePage && !scrolled) ? 'text-white' : 'text-primary-600';
     const logoBtnTextColorClass = (isHomePage && !scrolled) ? 'text-white' : 'text-primary-600';
-    const mobileBgClass = 'bg-white';
 
     return (
         <Disclosure
             as="nav"
             className={`fixed w-full z-40 transition-all duration-300 ${
-                scrolled
+                scrolled || isAdminPage
                     ? 'bg-white shadow-md'
                     : isHomePage ? 'bg-transparent' : 'bg-white'
             }`}
@@ -112,11 +101,6 @@ const NavBar = () => {
                                         .filter(item => {
                                             // Check authentication requirement
                                             if (item.authenticated && !isAuthenticated) return false;
-                                            if (!item.authenticated && item.adminOnly) return false;
-
-                                            // Check admin requirement
-                                            if (item.adminOnly && !currentUser?.roles?.includes('ADMIN')) return false;
-
                                             return true;
                                         })
                                         .map((item) => (
@@ -124,7 +108,7 @@ const NavBar = () => {
                                                 key={item.name}
                                                 to={item.to}
                                                 className={({ isActive }) =>
-                                                    `inline-flex items-center px-1 pt-1 text-sm font-medium ${
+                                                    `inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200 ${
                                                         isActive
                                                             ? `${activeTextColorClass} border-b-2 border-primary-500`
                                                             : `${textColorClass} ${hoverTextColorClass} hover:border-b-2 hover:border-neutral-300`
@@ -134,6 +118,23 @@ const NavBar = () => {
                                                 {item.name}
                                             </NavLink>
                                         ))}
+
+                                    {/* Admin Panel Link for Admins */}
+                                    {currentUser?.roles?.includes('ADMIN') && (
+                                        <NavLink
+                                            to="/admin/dashboard"
+                                            className={({ isActive }) =>
+                                                `inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200 ${
+                                                    isActive || isAdminPage
+                                                        ? `${activeTextColorClass} border-b-2 border-primary-500`
+                                                        : `${textColorClass} ${hoverTextColorClass} hover:border-b-2 hover:border-neutral-300`
+                                                }`
+                                            }
+                                        >
+                                            <ShieldCheckIcon className="h-4 w-4 mr-1" />
+                                            Admin Panel
+                                        </NavLink>
+                                    )}
                                 </div>
                             </div>
 
@@ -162,7 +163,7 @@ const NavBar = () => {
                                                         />
                                                     ) : (
                                                         <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700">
-                                                            <span className="font-medium">
+                                                            <span className="font-medium text-sm">
                                                                 {currentUser?.firstName?.[0]}{currentUser?.lastName?.[0]}
                                                             </span>
                                                         </div>
@@ -178,31 +179,42 @@ const NavBar = () => {
                                                 leaveFrom="transform opacity-100 scale-100"
                                                 leaveTo="transform opacity-0 scale-95"
                                             >
-                                                <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                                    {userNavigation.map((item) => (
-                                                        <Menu.Item key={item.name}>
-                                                            {({ active }) => (
-                                                                item.to ? (
-                                                                    <Link
-                                                                        to={item.to}
-                                                                        className={`${
-                                                                            active ? 'bg-neutral-100' : ''
-                                                                        } block px-4 py-2 text-sm text-neutral-700`}
-                                                                    >
-                                                                        {item.name}
-                                                                    </Link>
-                                                                ) : (
-                                                                    <button
-                                                                        onClick={item.onClick}
-                                                                        className={`${
-                                                                            active ? 'bg-neutral-100' : ''
-                                                                        } block w-full text-left px-4 py-2 text-sm text-neutral-700`}
-                                                                    >
-                                                                        {item.name}
-                                                                    </button>
-                                                                )
+                                                <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                                    {userNavigation.map((item, index) => (
+                                                        <React.Fragment key={item.name}>
+                                                            {item.divider && index > 0 && (
+                                                                <hr className="border-neutral-200 my-1" />
                                                             )}
-                                                        </Menu.Item>
+                                                            <Menu.Item>
+                                                                {({ active }) => (
+                                                                    item.to ? (
+                                                                        <Link
+                                                                            to={item.to}
+                                                                            className={`${
+                                                                                active ? 'bg-neutral-100' : ''
+                                                                            } flex items-center px-4 py-2 text-sm text-neutral-700`}
+                                                                        >
+                                                                            {item.icon && (
+                                                                                <item.icon className="h-4 w-4 mr-2" />
+                                                                            )}
+                                                                            {item.name}
+                                                                        </Link>
+                                                                    ) : (
+                                                                        <button
+                                                                            onClick={item.onClick}
+                                                                            className={`${
+                                                                                active ? 'bg-neutral-100' : ''
+                                                                            } flex items-center w-full text-left px-4 py-2 text-sm text-neutral-700`}
+                                                                        >
+                                                                            {item.icon && (
+                                                                                <item.icon className="h-4 w-4 mr-2" />
+                                                                            )}
+                                                                            {item.name}
+                                                                        </button>
+                                                                    )
+                                                                )}
+                                                            </Menu.Item>
+                                                        </React.Fragment>
                                                     ))}
                                                 </Menu.Items>
                                             </Transition>
@@ -262,12 +274,30 @@ const NavBar = () => {
                                         {item.name}
                                     </Disclosure.Button>
                                 ))}
+
+                            {/* Admin Panel Link in Mobile */}
+                            {currentUser?.roles?.includes('ADMIN') && (
+                                <Disclosure.Button
+                                    as={NavLink}
+                                    to="/admin/dashboard"
+                                    className={({ isActive }) =>
+                                        `flex items-center py-2 pl-3 pr-4 text-base font-medium ${
+                                            isActive || isAdminPage
+                                                ? 'text-primary-600 bg-primary-50 border-l-4 border-primary-500'
+                                                : 'text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 hover:border-l-4 hover:border-neutral-300'
+                                        }`
+                                    }
+                                >
+                                    <ShieldCheckIcon className="h-5 w-5 mr-2" />
+                                    Admin Panel
+                                </Disclosure.Button>
+                            )}
                         </div>
 
                         {isAuthenticated ? (
                             <div className="border-t border-neutral-200 pt-4 pb-3">
                                 {/* Mock API Toggle in mobile menu */}
-                                <div className="px-4 mb-2">
+                                <div className="px-4 mb-4">
                                     <MockApiToggle />
                                 </div>
 
@@ -290,25 +320,35 @@ const NavBar = () => {
                                         <div className="text-sm font-medium text-neutral-500">{currentUser?.email}</div>
                                     </div>
 
-                                    {/*Notification Bell*/}
-
-                                    <NotificationBell />
+                                    {/* Notification Bell */}
+                                    <div className="ml-auto">
+                                        <NotificationBell />
+                                    </div>
                                 </div>
+
                                 <div className="mt-3 space-y-1">
                                     {userNavigation.map((item, index) => (
                                         <React.Fragment key={item.name}>
-                                            {item.divider && <hr className="border-neutral-200 my-2" />}
+                                            {item.divider && index > 0 && <hr className="border-neutral-200 my-2" />}
                                             <Disclosure.Button
                                                 as={item.to ? Link : 'button'}
                                                 to={item.to}
                                                 onClick={item.onClick}
-                                                className="block px-4 py-2 text-base font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 w-full text-left"
+                                                className="flex items-center px-4 py-2 text-base font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 w-full text-left"
                                             >
+                                                {item.icon && (
+                                                    <item.icon className="h-5 w-5 mr-3" />
+                                                )}
                                                 {item.name}
                                             </Disclosure.Button>
                                         </React.Fragment>
                                     ))}
                                 </div>
+
+                                {/* Admin Navigation in Mobile */}
+                                {currentUser?.roles?.includes('ADMIN') && (
+                                    <AdminNavigation isMobile={true} className="mt-4" />
+                                )}
                             </div>
                         ) : (
                             <div className="border-t border-neutral-200 pt-4 pb-3">
