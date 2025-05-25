@@ -1,4 +1,4 @@
-// src/components/common/NavBar.jsx - Updated with admin panel access
+// src/components/common/NavBar.jsx - Updated with admin panel access (MockAPI removed from admin)
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -139,8 +139,8 @@ const NavBar = () => {
                             </div>
 
                             <div className="hidden sm:ml-6 sm:flex sm:items-center">
-                                {/* Mock API Toggle */}
-                                {isAuthenticated && (
+                                {/* Mock API Toggle - Only show for non-admin pages */}
+                                {isAuthenticated && !isAdminPage && (
                                     <MockApiToggle className="mr-4" />
                                 )}
 
@@ -296,10 +296,12 @@ const NavBar = () => {
 
                         {isAuthenticated ? (
                             <div className="border-t border-neutral-200 pt-4 pb-3">
-                                {/* Mock API Toggle in mobile menu */}
-                                <div className="px-4 mb-4">
-                                    <MockApiToggle />
-                                </div>
+                                {/* Mock API Toggle in mobile menu - Only show for non-admin pages */}
+                                {!isAdminPage && (
+                                    <div className="px-4 mb-4">
+                                        <MockApiToggle />
+                                    </div>
+                                )}
 
                                 <div className="flex items-center px-4">
                                     <div className="flex-shrink-0">

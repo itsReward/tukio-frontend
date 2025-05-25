@@ -1,12 +1,26 @@
 // src/pages/AdminUsersPageWrapper.jsx
 import React from 'react';
+import { Helmet } from 'react-helmet';
 import AdminUsersPage from '../components/admin/AdminUsersPage';
 
 /**
- * Wrapper component for the Admin Users Page
+ * Admin Users Page Wrapper
+ * This page allows admins to manage user accounts and permissions
  */
 const AdminUsersPageWrapper = () => {
-    return <AdminUsersPage />;
+    return (
+        <>
+            <Helmet>
+                <title>User Management | Tukio Admin</title>
+                <meta
+                    name="description"
+                    content="Manage user accounts, roles, permissions, and user activities."
+                />
+            </Helmet>
+
+            <AdminUsersPage />
+        </>
+    );
 };
 
 export default AdminUsersPageWrapper;

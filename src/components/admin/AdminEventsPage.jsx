@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 import {
     PlusIcon,
     MagnifyingGlassIcon,
@@ -12,6 +13,9 @@ import {
     ClockIcon,
     ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+
+// Services
+import eventService from '../../services/eventService.js';
 
 const AdminEventsPage = () => {
     const [events, setEvents] = useState([]);
@@ -33,100 +37,33 @@ const AdminEventsPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [eventsPerPage] = useState(10);
 
-    // Mock data for demonstration
-    const mockEvents = [
-        {
-            id: 1,
-            title: 'Machine Learning Workshop',
-            description: 'Learn the basics of ML algorithms',
-            organizer: 'CS Department',
-            categoryId: 1,
-            categoryName: 'Technology',
-            status: 'DRAFT',
-            startTime: '2025-06-15T10:00:00',
-            currentRegistrations: 25,
-            maxParticipants: 50,
-            imageUrl: 'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
-            createdAt: '2025-05-20T08:00:00'
-        },
-        {
-            id: 2,
-            title: 'Annual Sports Day',
-            description: 'Campus-wide sports competition',
-            organizer: 'Athletics Department',
-            categoryId: 2,
-            categoryName: 'Sports',
-            status: 'SCHEDULED',
-            startTime: '2025-06-20T09:00:00',
-            currentRegistrations: 150,
-            maxParticipants: 200,
-            imageUrl: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
-            createdAt: '2025-05-18T10:30:00'
-        },
-        {
-            id: 3,
-            title: 'Career Fair 2025',
-            description: 'Meet recruiters from top companies',
-            organizer: 'Career Services',
-            categoryId: 3,
-            categoryName: 'Career',
-            status: 'SCHEDULED',
-            startTime: '2025-07-01T09:00:00',
-            currentRegistrations: 75,
-            maxParticipants: 100,
-            imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
-            createdAt: '2025-05-15T14:20:00'
-        },
-        {
-            id: 4,
-            title: 'Cultural Night 2025',
-            description: 'Celebrating diversity with performances',
-            organizer: 'Cultural Association',
-            categoryId: 4,
-            categoryName: 'Cultural',
-            status: 'DRAFT',
-            startTime: '2025-06-25T18:00:00',
-            currentRegistrations: 40,
-            maxParticipants: 80,
-            imageUrl: 'https://images.unsplash.com/photo-1519750783826-e2420f4d687f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
-            createdAt: '2025-05-22T11:15:00'
-        },
-        {
-            id: 5,
-            title: 'Coding Bootcamp',
-            description: 'Intensive programming workshop',
-            organizer: 'Tech Club',
-            categoryId: 1,
-            categoryName: 'Technology',
-            status: 'CANCELLED',
-            startTime: '2025-06-10T14:00:00',
-            currentRegistrations: 0,
-            maxParticipants: 30,
-            imageUrl: 'https://images.unsplash.com/photo-1517180102446-f3ece451e9d8?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
-            createdAt: '2025-05-12T16:45:00'
-        }
-    ];
-
-    const mockCategories = [
-        { id: 1, name: 'Technology' },
-        { id: 2, name: 'Sports' },
-        { id: 3, name: 'Career' },
-        { id: 4, name: 'Cultural' },
-        { id: 5, name: 'Academic' }
-    ];
-
     useEffect(() => {
-        // Simulate API call
-        setTimeout(() => {
-            setEvents(mockEvents);
-            setCategories(mockCategories);
-            setLoading(false);
-        }, 1000);
+        fetchData();
     }, []);
 
     useEffect(() => {
         filterAndSortEvents();
     }, [events, searchTerm, statusFilter, categoryFilter, sortBy, sortOrder]);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+
+            // Fetch events and categories from real API
+            const [eventsResponse, categoriesResponse] = await Promise.all([
+                eventService.getAdminEvents(),
+                eventService.getAllCategories()
+            ]);
+
+            setEvents(eventsResponse.data || []);
+            setCategories(categoriesResponse.data || []);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            toast.error('Failed to load events data');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const filterAndSortEvents = () => {
         let filtered = [...events];
@@ -176,16 +113,15 @@ const AdminEventsPage = () => {
 
         try {
             setActionLoading(true);
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await eventService.deleteEvent(selectedEvent.id);
 
             setEvents(prev => prev.filter(event => event.id !== selectedEvent.id));
-            alert('Event deleted successfully');
+            toast.success('Event deleted successfully');
             setShowDeleteModal(false);
             setSelectedEvent(null);
         } catch (error) {
             console.error('Error deleting event:', error);
-            alert('Failed to delete event');
+            toast.error('Failed to delete event');
         } finally {
             setActionLoading(false);
         }
@@ -194,8 +130,12 @@ const AdminEventsPage = () => {
     const handleApproveEvent = async (eventId, approved) => {
         try {
             setActionLoading(true);
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 500));
+
+            if (approved) {
+                await eventService.approveEvent(eventId);
+            } else {
+                await eventService.rejectEvent(eventId);
+            }
 
             const newStatus = approved ? 'SCHEDULED' : 'CANCELLED';
             setEvents(prev => prev.map(event =>
@@ -204,10 +144,10 @@ const AdminEventsPage = () => {
                     : event
             ));
 
-            alert(`Event ${approved ? 'approved' : 'rejected'} successfully`);
+            toast.success(`Event ${approved ? 'approved' : 'rejected'} successfully`);
         } catch (error) {
             console.error('Error updating event status:', error);
-            alert(`Failed to ${approved ? 'approve' : 'reject'} event`);
+            toast.error(`Failed to ${approved ? 'approve' : 'reject'} event`);
         } finally {
             setActionLoading(false);
         }
@@ -485,7 +425,7 @@ const AdminEventsPage = () => {
                                                             {event.title}
                                                         </p>
                                                         <p className="text-sm text-gray-500 truncate">
-                                                            {event.categoryName}
+                                                            {event.categoryName || 'Unknown Category'}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -522,6 +462,7 @@ const AdminEventsPage = () => {
                                                     <button
                                                         className="text-gray-600 hover:text-gray-900"
                                                         title="View Event"
+                                                        onClick={() => window.open(`/events/${event.id}`, '_blank')}
                                                     >
                                                         <EyeIcon className="h-5 w-5" />
                                                     </button>
@@ -530,6 +471,7 @@ const AdminEventsPage = () => {
                                                     <button
                                                         className="text-blue-600 hover:text-blue-900"
                                                         title="Edit Event"
+                                                        onClick={() => window.location.href = `/admin/events/${event.id}/edit`}
                                                     >
                                                         <PencilIcon className="h-5 w-5" />
                                                     </button>

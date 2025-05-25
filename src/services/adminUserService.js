@@ -2,7 +2,7 @@
 import api from './api';
 
 const ADMIN_USER_ENDPOINTS = {
-    USERS: 'tukio-user-service/api/admin/users',
+    USERS: 'tukio-user-service/api/users',
     ROLES: 'tukio-user-service/api/admin/roles',
     STATS: 'tukio-user-service/api/admin/stats'
 };

@@ -1,4 +1,4 @@
-// src/App.jsx - Updated with complete admin functionality
+// src/App.jsx - Updated with admin functionality (MockAPI conditionally used)
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -83,7 +83,7 @@ function App() {
                                     </Route>
                                 </Route>
 
-                                {/* Admin-only protected routes */}
+                                {/* Admin-only protected routes - Note: MockAPI not used in admin functionality */}
                                 <Route element={<AdminProtectedRoute />}>
                                     <Route element={<MainLayout />}>
                                         {/* Admin Dashboard */}

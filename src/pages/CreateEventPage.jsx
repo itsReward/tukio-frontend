@@ -156,7 +156,7 @@ const CreateEventPage = () => {
       tags: [],
       organizer: currentUser ? `${currentUser.firstName} ${currentUser.lastName}`.trim() : 'Unknown Organizer',
       organizerId: currentUser?.id || 0,
-      status: EVENT_STATUSES.SCHEDULED
+      status: EVENT_STATUSES.DRAFT
     },
     validationSchema,
     onSubmit: async (values) => {
@@ -181,7 +181,7 @@ const CreateEventPage = () => {
           tags: values.tags,
           organizer: values.organizer,
           organizerId: values.organizerId,
-          status: EVENT_STATUSES.SCHEDULED
+          status: EVENT_STATUSES.DRAFT
         };
 
         console.log("Creating event with data:", eventData);
