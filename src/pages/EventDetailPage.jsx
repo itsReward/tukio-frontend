@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
+import { useEventTracking } from '../hooks/useRecommendations';
 import eventService from '../services/eventService';
 import venueService from '../services/venueService';
 import gamificationService from '../services/gamificationService';
@@ -30,6 +31,7 @@ const EventDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { isAuthenticated, currentUser } = useAuth();
+    const { trackView, trackRegistration, trackShare, trackRating } = useEventTracking();
 
     const [event, setEvent] = useState(null);
     const [venue, setVenue] = useState(null);
@@ -41,13 +43,21 @@ const EventDetailPage = () => {
     const [feedback, setFeedback] = useState('');
     const [submittingFeedback, setSubmittingFeedback] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [viewStartTime, setViewStartTime] = useState(null);
 
     useEffect(() => {
         const fetchEventData = async () => {
             try {
                 setLoading(true);
+                setViewStartTime(Date.now()); // Track when user started viewing
+
                 const eventResponse = await eventService.getEventById(id);
                 setEvent(eventResponse.data);
+
+                // Track event view
+                if (isAuthenticated && currentUser?.id) {
+                    await trackView(parseInt(id));
+                }
 
                 // If venue ID exists, fetch venue details
                 if (eventResponse.data.venueId) {
@@ -80,7 +90,17 @@ const EventDetailPage = () => {
         };
 
         fetchEventData();
-    }, [id, isAuthenticated, currentUser]);
+
+        // Track view duration when component unmounts
+        return () => {
+            if (viewStartTime && isAuthenticated && currentUser?.id) {
+                const viewDuration = Math.floor((Date.now() - viewStartTime) / 1000);
+                if (viewDuration > 5) { // Only track if viewed for more than 5 seconds
+                    trackView(parseInt(id), viewDuration);
+                }
+            }
+        };
+    }, [id, isAuthenticated, currentUser, trackView]);
 
     // Format date
     const formatDate = (dateString) => {
@@ -126,6 +146,9 @@ const EventDetailPage = () => {
 
             // Record activity for gamification
             await gamificationService.recordEventRegistration(currentUser.id, parseInt(id));
+
+            // Track registration activity for recommendations
+            await trackRegistration(parseInt(id));
 
             setRegistrationStatus('REGISTERED');
             toast.success('Successfully registered for the event!');
@@ -176,6 +199,9 @@ const EventDetailPage = () => {
             // Record activity for gamification
             await gamificationService.recordEventRating(currentUser.id, parseInt(id), rating);
 
+            // Track rating activity for recommendations
+            await trackRating(parseInt(id), rating);
+
             toast.success('Thank you for your feedback!');
             setShowRatingModal(false);
             setRating(0);
@@ -214,6 +240,7 @@ const EventDetailPage = () => {
                     // If authenticated, record sharing activity
                     if (isAuthenticated && currentUser?.id) {
                         gamificationService.recordEventSharing(currentUser.id, parseInt(id));
+                        trackShare(parseInt(id));
                     }
                     return;
                 } catch (err) {
@@ -230,6 +257,7 @@ const EventDetailPage = () => {
         // If authenticated, record sharing activity
         if (isAuthenticated && currentUser?.id) {
             gamificationService.recordEventSharing(currentUser.id, parseInt(id));
+            trackShare(parseInt(id));
         }
     };
 

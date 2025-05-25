@@ -11,6 +11,7 @@ import ActivityFeed from '../components/dashboard/ActivityFeed';
 import Statistics from '../components/dashboard/Statistics';
 import BadgeDisplay from '../components/gamification/BadgeDisplay';
 import PointsDisplay from '../components/gamification/PointsDisplay';
+import RecommendationsWidget from '../components/common/RecommendationsWidget';
 
 const DashboardPage = () => {
     const { currentUser } = useAuth();
@@ -168,40 +169,10 @@ const DashboardPage = () => {
                         </div>
 
                         {/* Recommended Events */}
-                        <div className="bg-white rounded-xl shadow-card border border-neutral-200 overflow-hidden">
-                            <div className="px-6 py-5 border-b border-neutral-200">
-                                <h2 className="text-xl font-semibold text-neutral-900">Recommended For You</h2>
-                            </div>
-                            <div className="p-6">
-                                <div className="space-y-4">
-                                    {[1, 2, 3].map((item) => (
-                                        <div key={item} className="flex items-start">
-                                            <div className="h-14 w-14 rounded bg-primary-100 flex-shrink-0 flex items-center justify-center">
-                                                <span className="text-primary-600 text-lg">🎯</span>
-                                            </div>
-                                            <div className="ml-4">
-                                                <h3 className="text-sm font-medium text-neutral-900">
-                                                    <Link to="/events/1" className="hover:text-primary-600">
-                                                        Recommended Event {item}
-                                                    </Link>
-                                                </h3>
-                                                <p className="mt-1 text-xs text-neutral-500">
-                                                    Based on your interests
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="mt-4 pt-4 border-t border-neutral-200">
-                                    <Link
-                                        to="/events"
-                                        className="btn btn-outline w-full"
-                                    >
-                                        Browse More Events
-                                    </Link>
-                                </div>
-                            </div>
-                        </div>
+                        <RecommendationsWidget
+                            userId={currentUser?.id}
+                            maxItems={3}
+                        />
                     </motion.div>
                 </motion.div>
             </div>

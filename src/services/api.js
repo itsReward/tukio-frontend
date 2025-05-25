@@ -1,7 +1,8 @@
-// Updated api.js to include notification endpoints
+// Updated api.js to include recommendation endpoints
 import axios from 'axios';
 import mockApi from './mockApi';
 import mockNotificationApi from './mockNotificationApi';
+import mockRecommendationApi from './mockRecommendationApi';
 
 // Helper to get mock mode status from context/localStorage
 const isMockMode = () => localStorage.getItem('useMockApi') === 'true';
@@ -72,6 +73,159 @@ const api = {
             const baseEndpoint = urlParts[1]; // e.g., 'notifications', 'notification-preferences'
 
             try {
+                // ========== Recommendation Service Endpoints ==========
+                if (url.startsWith('tukio-recommendation-service/api/recommendations')) {
+
+                    // GET /api/recommendations/user/{userId}
+                    if (url.match(/\/recommendations\/user\/\d+$/)) {
+                        const userId = url.match(/\/user\/(\d+)$/)[1];
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const options = {
+                            count: params.get('count') ? parseInt(params.get('count')) : undefined,
+                            includeUpcoming: params.get('includeUpcoming') ? params.get('includeUpcoming') === 'true' : undefined,
+                            includePast: params.get('includePast') ? params.get('includePast') === 'true' : undefined,
+                            includeSimilarEvents: params.get('includeSimilarEvents') ? params.get('includeSimilarEvents') === 'true' : undefined,
+                            includePopularEvents: params.get('includePopularEvents') ? params.get('includePopularEvents') === 'true' : undefined
+                        };
+                        return mockRecommendationApi.getRecommendationsForUser(userId, options);
+                    }
+
+                    // GET /api/recommendations/user/{userId}/personalized
+                    if (url.match(/\/recommendations\/user\/\d+\/personalized$/)) {
+                        const userId = url.match(/\/user\/(\d+)\/personalized$/)[1];
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const count = params.get('count') ? parseInt(params.get('count')) : 5;
+                        return mockRecommendationApi.getPersonalizedRecommendations(userId, count);
+                    }
+
+                    // GET /api/recommendations/user/{userId}/similar
+                    if (url.match(/\/recommendations\/user\/\d+\/similar$/)) {
+                        const userId = url.match(/\/user\/(\d+)\/similar$/)[1];
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const count = params.get('count') ? parseInt(params.get('count')) : 5;
+                        return mockRecommendationApi.getSimilarRecommendations(userId, count);
+                    }
+
+                    // GET /api/recommendations/popular
+                    if (url.match(/\/recommendations\/popular$/)) {
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const count = params.get('count') ? parseInt(params.get('count')) : 5;
+                        return mockRecommendationApi.getPopularEvents(count);
+                    }
+
+                    // GET /api/recommendations/trending
+                    if (url.match(/\/recommendations\/trending$/)) {
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const count = params.get('count') ? parseInt(params.get('count')) : 5;
+                        return mockRecommendationApi.getTrendingEvents(count);
+                    }
+
+                    // GET /api/recommendations/user/{userId}/location
+                    if (url.match(/\/recommendations\/user\/\d+\/location$/)) {
+                        const userId = url.match(/\/user\/(\d+)\/location$/)[1];
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const count = params.get('count') ? parseInt(params.get('count')) : 5;
+                        return mockRecommendationApi.getLocationBasedRecommendations(userId, count);
+                    }
+
+                    // GET /api/recommendations/user/{userId}/time
+                    if (url.match(/\/recommendations\/user\/\d+\/time$/)) {
+                        const userId = url.match(/\/user\/(\d+)\/time$/)[1];
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const count = params.get('count') ? parseInt(params.get('count')) : 5;
+                        return mockRecommendationApi.getTimeBasedRecommendations(userId, count);
+                    }
+                }
+
+                // ========== Recommendation Activities Endpoints ==========
+                if (url.startsWith('tukio-recommendation-service/api/activities')) {
+
+                    // GET /api/activities/user/{userId}
+                    if (url.match(/\/activities\/user\/\d+$/)) {
+                        const userId = url.match(/\/user\/(\d+)$/)[1];
+                        return mockRecommendationApi.getUserActivities(userId);
+                    }
+
+                    // GET /api/activities/user/{userId}/type/{activityType}
+                    if (url.match(/\/activities\/user\/\d+\/type\/\w+$/)) {
+                        const matches = url.match(/\/user\/(\d+)\/type\/(\w+)$/);
+                        const userId = matches[1];
+                        const activityType = matches[2];
+                        return mockRecommendationApi.getUserActivitiesByType(userId, activityType);
+                    }
+
+                    // GET /api/activities/event/{eventId}
+                    if (url.match(/\/activities\/event\/\d+$/)) {
+                        const eventId = url.match(/\/event\/(\d+)$/)[1];
+                        return mockRecommendationApi.getEventActivities(eventId);
+                    }
+
+                    // GET /api/activities/event/{eventId}/rating
+                    if (url.match(/\/activities\/event\/\d+\/rating$/)) {
+                        const eventId = url.match(/\/event\/(\d+)\/rating$/)[1];
+                        return mockRecommendationApi.getEventAverageRating(eventId);
+                    }
+
+                    // GET /api/activities/popular
+                    if (url.match(/\/activities\/popular$/)) {
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const activityType = params.get('activityType');
+                        const limit = params.get('limit') ? parseInt(params.get('limit')) : 10;
+                        return mockRecommendationApi.getPopularEventsByActivity(activityType, limit);
+                    }
+
+                    // GET /api/activities/trending
+                    if (url.match(/\/activities\/trending$/)) {
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const activityType = params.get('activityType');
+                        const daysAgo = params.get('daysAgo') ? parseInt(params.get('daysAgo')) : 7;
+                        const limit = params.get('limit') ? parseInt(params.get('limit')) : 10;
+                        return mockRecommendationApi.getTrendingEventsByActivity(activityType, daysAgo, limit);
+                    }
+                }
+
+                // ========== Recommendation Preferences Endpoints ==========
+                if (url.startsWith('tukio-recommendation-service/api/preferences')) {
+
+                    // GET /api/preferences/user/{userId}
+                    if (url.match(/\/preferences\/user\/\d+$/)) {
+                        const userId = url.match(/\/user\/(\d+)$/)[1];
+                        return mockRecommendationApi.getUserPreferences(userId);
+                    }
+
+                    // GET /api/preferences/user/{userId}/category/{categoryId}
+                    if (url.match(/\/preferences\/user\/\d+\/category\/\d+$/)) {
+                        const matches = url.match(/\/user\/(\d+)\/category\/(\d+)$/);
+                        const userId = matches[1];
+                        const categoryId = matches[2];
+                        return mockRecommendationApi.getUserPreferenceForCategory(userId, categoryId);
+                    }
+
+                    // GET /api/preferences/user/{userId}/tags
+                    if (url.match(/\/preferences\/user\/\d+\/tags$/)) {
+                        const userId = url.match(/\/user\/(\d+)\/tags$/)[1];
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const tags = params.get('tags');
+                        return mockRecommendationApi.getUserPreferencesByTags(userId, tags);
+                    }
+
+                    // GET /api/preferences/user/{userId}/categories
+                    if (url.match(/\/preferences\/user\/\d+\/categories$/)) {
+                        const userId = url.match(/\/user\/(\d+)\/categories$/)[1];
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const limit = params.get('limit') ? parseInt(params.get('limit')) : 5;
+                        return mockRecommendationApi.getFavoriteCategories(userId, limit);
+                    }
+
+                    // GET /api/preferences/user/{userId}/similar-users
+                    if (url.match(/\/preferences\/user\/\d+\/similar-users$/)) {
+                        const userId = url.match(/\/user\/(\d+)\/similar-users$/)[1];
+                        const params = new URLSearchParams(url.split('?')[1] || '');
+                        const minSimilarityScore = params.get('minSimilarityScore') ? parseFloat(params.get('minSimilarityScore')) : 0.3;
+                        return mockRecommendationApi.findSimilarUsers(userId, minSimilarityScore);
+                    }
+                }
+
                 // ========== Notification Endpoints ==========
                 if (url.startsWith('tukio-notification-service/api/notifications')) {
 
@@ -235,6 +389,20 @@ const api = {
     post: async (url, data, config) => {
         if (isMockMode()) {
             try {
+                // ========== Recommendation Service Endpoints ==========
+                if (url === 'tukio-recommendation-service/api/recommendations') {
+                    return mockRecommendationApi.getRecommendations(data);
+                }
+
+                if (url === 'tukio-recommendation-service/api/activities') {
+                    return mockRecommendationApi.recordActivity(data);
+                }
+
+                if (url.match(/\/preferences\/user\/\d+\/analyze$/)) {
+                    const userId = url.match(/\/user\/(\d+)\/analyze$/)[1];
+                    return mockRecommendationApi.analyzeUserActivity(userId);
+                }
+
                 // ========== Notification Endpoints ==========
                 if (url === 'tukio-notification-service/api/notifications') {
                     return mockNotificationApi.createNotification(data);
@@ -291,6 +459,11 @@ const api = {
     put: async (url, data, config) => {
         if (isMockMode()) {
             try {
+                // ========== Recommendation Service Endpoints ==========
+                if (url === 'tukio-recommendation-service/api/preferences') {
+                    return mockRecommendationApi.updateUserPreference(data);
+                }
+
                 // ========== Notification Endpoints ==========
                 if (url.match(/\/notifications\/\d+\/read\?userId=\d+$/)) {
                     const matches = url.match(/\/notifications\/(\d+)\/read\?userId=(\d+)$/);
