@@ -282,6 +282,39 @@ const api = {
                     }
                 }
 
+                // ========== Attendance Endpoints ==========
+                if (url.match(/^tukio-events-service\/api\/events\/\d+\/attendance\/me$/)) {
+                    const eventId = url.match(/\/events\/(\d+)\/attendance\/me$/)[1];
+                    return mockApi.getMyAttendance(eventId);
+                }
+
+                if (url.match(/^tukio-events-service\/api\/events\/\d+\/attendees$/)) {
+                    const eventId = url.match(/\/events\/(\d+)\/attendees$/)[1];
+                    return mockApi.getEventAttendees(eventId);
+                }
+
+                // ========== Rating Endpoints ==========
+                if (url.match(/^tukio-events-service\/api\/events\/\d+\/rating\/me$/)) {
+                    const eventId = url.match(/\/events\/(\d+)\/rating\/me$/)[1];
+                    return mockApi.getMyRating(eventId);
+                }
+
+                if (url.match(/^tukio-events-service\/api\/events\/\d+\/ratings$/)) {
+                    const eventId = url.match(/\/events\/(\d+)\/ratings$/)[1];
+                    const params = new URLSearchParams(url.split('?')[1] || '');
+                    const options = {
+                        page: params.get('page') ? parseInt(params.get('page')) : 0,
+                        size: params.get('size') ? parseInt(params.get('size')) : 10,
+                        sort: params.get('sort') || 'createdAt,desc'
+                    };
+                    return mockApi.getEventRatings(eventId, options);
+                }
+
+                if (url.match(/^tukio-events-service\/api\/events\/\d+\/ratings\/summary$/)) {
+                    const eventId = url.match(/\/events\/(\d+)\/ratings\/summary$/)[1];
+                    return mockApi.getEventRatingSummary(eventId);
+                }
+
                 // ========== Template Endpoints ==========
                 if (url.startsWith('tukio-notification-service/api/notification-templates')) {
 
@@ -442,6 +475,18 @@ const api = {
                     const eventId = url.split('/')[4];
                     const userId = new URLSearchParams(url.split('?')[1]).get('userId');
                     return mockApi.recordEventSharing(userId, eventId);
+                }
+
+                // ========== Attendance Endpoints ==========
+                if (url.match(/^tukio-events-service\/api\/events\/\d+\/attendance$/)) {
+                    const eventId = url.match(/\/events\/(\d+)\/attendance$/)[1];
+                    return mockApi.recordAttendance(eventId, data);
+                }
+
+                // ========== Rating Endpoints ==========
+                if (url.match(/^tukio-events-service\/api\/events\/\d+\/rating$/)) {
+                    const eventId = url.match(/\/events\/(\d+)\/rating$/)[1];
+                    return mockApi.submitEventRating(eventId, data);
                 }
 
                 // Default case - not implemented in mock

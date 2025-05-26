@@ -1,4 +1,4 @@
-// src/components/admin/AdminUsersPage.jsx - Real API only
+// src/components/admin/AdminUsersPage.jsx - Fixed to work with correct API
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -11,7 +11,8 @@ import {
     CheckIcon,
     XMarkIcon,
     ShieldCheckIcon,
-    ExclamationTriangleIcon
+    ExclamationTriangleIcon,
+    ServerIcon
 } from '@heroicons/react/24/outline';
 
 // Services
@@ -25,6 +26,7 @@ const AdminUsersPage = () => {
     const [selectedUser, setSelectedUser] = useState(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
+    const [connectionError, setConnectionError] = useState(false);
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -49,20 +51,46 @@ const AdminUsersPage = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
+            setConnectionError(false);
 
-            // Fetch users and roles from real API
+            // Fetch users and roles from the correct API endpoints
             const [usersResponse, rolesResponse] = await Promise.all([
                 adminUserService.getAllUsers(),
                 adminUserService.getAllRoles()
             ]);
 
-            setUsers(usersResponse.data || []);
+            // Process users data to include computed status
+            const processedUsers = (usersResponse.data || []).map(user => ({
+                ...user,
+                // Compute status based on user properties
+                status: getUserStatus(user),
+                // Ensure roles is always an array
+                roles: user.roles || ['USER']
+            }));
+
+            setUsers(processedUsers);
             setRoles(rolesResponse.data || []);
         } catch (error) {
             console.error('Error fetching data:', error);
-            toast.error('Failed to load users data');
+            setConnectionError(true);
+
+            // Show user-friendly error message
+            toast.error('Failed to load user data. Please check if the backend services are running.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Helper function to determine user status based on API properties
+    const getUserStatus = (user) => {
+        if (!user.enabled) {
+            return 'INACTIVE';
+        } else if (!user.accountNonLocked) {
+            return 'SUSPENDED';
+        } else if (!user.accountNonExpired) {
+            return 'EXPIRED';
+        } else {
+            return 'ACTIVE';
         }
     };
 
@@ -74,7 +102,8 @@ const AdminUsersPage = () => {
             filtered = filtered.filter(user =>
                 `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.department?.toLowerCase().includes(searchTerm.toLowerCase())
+                user.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.username?.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
 
@@ -105,7 +134,7 @@ const AdminUsersPage = () => {
                 bValue = `${b.firstName} ${b.lastName}`;
             }
 
-            if (sortBy === 'createdAt' || sortBy === 'lastLoginAt') {
+            if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
                 aValue = new Date(aValue);
                 bValue = new Date(bValue);
             }
@@ -134,7 +163,7 @@ const AdminUsersPage = () => {
             setSelectedUser(null);
         } catch (error) {
             console.error('Error deleting user:', error);
-            toast.error('Failed to delete user');
+            toast.error(error.message || 'Failed to delete user');
         } finally {
             setActionLoading(false);
         }
@@ -153,14 +182,14 @@ const AdminUsersPage = () => {
             const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
             setUsers(prev => prev.map(user =>
                 user.id === userId
-                    ? { ...user, status: newStatus }
+                    ? { ...user, status: newStatus, enabled: newStatus === 'ACTIVE' }
                     : user
             ));
 
             toast.success(`User ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'} successfully`);
         } catch (error) {
             console.error('Error updating user status:', error);
-            toast.error('Failed to update user status');
+            toast.error(error.message || 'Failed to update user status');
         } finally {
             setActionLoading(false);
         }
@@ -170,8 +199,8 @@ const AdminUsersPage = () => {
         const badgeClasses = {
             'ACTIVE': 'bg-green-100 text-green-800',
             'INACTIVE': 'bg-red-100 text-red-800',
-            'PENDING': 'bg-yellow-100 text-yellow-800',
-            'SUSPENDED': 'bg-orange-100 text-orange-800'
+            'SUSPENDED': 'bg-orange-100 text-orange-800',
+            'EXPIRED': 'bg-yellow-100 text-yellow-800'
         };
 
         return (
@@ -210,7 +239,8 @@ const AdminUsersPage = () => {
     const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
     const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
 
-    const pendingUsers = users.filter(user => user.status === 'PENDING').length;
+    // Get unique departments for filter
+    const departments = [...new Set(users.map(user => user.department).filter(Boolean))];
 
     const Card = ({ children, className = '' }) => (
         <div className={`bg-white rounded-xl shadow-sm border border-gray-200 ${className}`}>
@@ -265,9 +295,6 @@ const AdminUsersPage = () => {
         );
     };
 
-    // Get unique departments for filter
-    const departments = [...new Set(users.map(user => user.department).filter(Boolean))];
-
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <motion.div
@@ -283,17 +310,19 @@ const AdminUsersPage = () => {
                         <p className="mt-1 text-gray-600">
                             Manage user accounts, roles, and permissions
                         </p>
-                        {pendingUsers > 0 && (
-                            <div className="mt-2 flex items-center text-amber-600">
-                                <ExclamationTriangleIcon className="h-5 w-5 mr-1" />
+                        {connectionError && (
+                            <div className="mt-2 flex items-center text-red-600">
+                                <ServerIcon className="h-5 w-5 mr-1" />
                                 <span className="text-sm font-medium">
-                                    {pendingUsers} user{pendingUsers !== 1 ? 's' : ''} pending approval
+                                    Unable to connect to user service. Please check backend services.
                                 </span>
                             </div>
                         )}
                     </div>
                     <div className="mt-4 sm:mt-0">
-                        <Button>
+                        <Button
+                            onClick={() => toast.info('User creation feature coming soon!')}
+                        >
                             <PlusIcon className="h-5 w-5 mr-2" />
                             Add User
                         </Button>
@@ -313,7 +342,7 @@ const AdminUsersPage = () => {
                                 <input
                                     type="text"
                                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Search by name, email, or department..."
+                                    placeholder="Search by name, email, or username..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -352,8 +381,8 @@ const AdminUsersPage = () => {
                                 <option value="ALL">All Status</option>
                                 <option value="ACTIVE">Active</option>
                                 <option value="INACTIVE">Inactive</option>
-                                <option value="PENDING">Pending</option>
                                 <option value="SUSPENDED">Suspended</option>
+                                <option value="EXPIRED">Expired</option>
                             </select>
                         </div>
 
@@ -382,16 +411,6 @@ const AdminUsersPage = () => {
                                 Sort By
                             </label>
                             <div className="flex space-x-2">
-                                <select
-                                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                >
-                                    <option value="createdAt">Created Date</option>
-                                    <option value="name">Name</option>
-                                    <option value="email">Email</option>
-                                    <option value="lastLoginAt">Last Login</option>
-                                </select>
                                 <button
                                     type="button"
                                     className="px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50"
@@ -417,7 +436,10 @@ const AdminUsersPage = () => {
                             </div>
                             <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
                             <p className="mt-1 text-sm text-gray-500">
-                                Try adjusting your search criteria or add a new user.
+                                {connectionError
+                                    ? 'Unable to load users. Please check backend connection.'
+                                    : 'Try adjusting your search criteria or add a new user.'
+                                }
                             </p>
                         </div>
                     ) : (
@@ -462,6 +484,11 @@ const AdminUsersPage = () => {
                                                         <p className="text-sm text-gray-500">
                                                             {user.email}
                                                         </p>
+                                                        {user.username && (
+                                                            <p className="text-xs text-gray-400">
+                                                                @{user.username}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -469,6 +496,9 @@ const AdminUsersPage = () => {
                                             {/* Department */}
                                             <div className="col-span-2">
                                                 <p className="text-sm text-gray-900">{user.department || 'Not specified'}</p>
+                                                {user.studentId && (
+                                                    <p className="text-xs text-gray-500">ID: {user.studentId}</p>
+                                                )}
                                             </div>
 
                                             {/* Roles */}
@@ -488,18 +518,33 @@ const AdminUsersPage = () => {
                                                 <p className="text-sm text-gray-900">
                                                     {formatDate(user.createdAt)}
                                                 </p>
+                                                {user.graduationYear && (
+                                                    <p className="text-xs text-gray-500">
+                                                        Grad: {user.graduationYear}
+                                                    </p>
+                                                )}
                                             </div>
 
                                             {/* Actions */}
                                             <div className="col-span-2">
                                                 <div className="flex items-center space-x-2">
+                                                    {/* View Profile */}
+                                                    <button
+                                                        className="text-gray-600 hover:text-gray-900"
+                                                        title="View Profile"
+                                                        onClick={() => {
+                                                            toast.info('Profile view feature coming soon!');
+                                                        }}
+                                                    >
+                                                        <UserIcon className="h-5 w-5" />
+                                                    </button>
+
                                                     {/* Edit */}
                                                     <button
                                                         className="text-blue-600 hover:text-blue-900"
                                                         title="Edit User"
                                                         onClick={() => {
-                                                            // Navigate to edit user page
-                                                            console.log('Edit user:', user.id);
+                                                            toast.info('User edit feature coming soon!');
                                                         }}
                                                     >
                                                         <PencilIcon className="h-5 w-5" />
@@ -519,7 +564,7 @@ const AdminUsersPage = () => {
                                                         )}
                                                     </button>
 
-                                                    {/* Admin Role Toggle */}
+                                                    {/* Admin Role Indicator */}
                                                     {user.roles && user.roles.includes('ADMIN') && (
                                                         <ShieldCheckIcon className="h-5 w-5 text-purple-600" title="Admin User" />
                                                     )}

@@ -73,7 +73,7 @@ const UpcomingEvents = ({ events = [] }) => {
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                                     <h3 className="text-base font-semibold text-neutral-900">
                                         <Link to={`/events/${event.eventId}`} className="hover:text-primary-600">
-                                            {event.eventTitle}
+                                            {event.title}
                                         </Link>
                                     </h3>
                                     <div className="mt-2 sm:mt-0">

@@ -23,48 +23,165 @@ const Statistics = ({ userId }) => {
 
     useEffect(() => {
         const fetchStats = async () => {
+            if (!userId) {
+                setLoading(false);
+                return;
+            }
+
             try {
                 setLoading(true);
+                setError(null);
 
-                // Fetch user's event statistics
+                console.log('=== STATISTICS DEBUG ===');
+                console.log('Fetching stats for user ID:', userId);
+
+                // Fetch user's event registrations
                 const eventsResponse = await eventService.getRegistrationsByUser(userId);
+                console.log('Events response:', eventsResponse.data);
 
                 // Fetch user's gamification statistics
-                const gamificationResponse = await gamificationService.getUserActivityStats(userId);
+                let gamificationStats = {};
+                try {
+                    const gamificationResponse = await gamificationService.getUserActivityStats(userId);
+                    gamificationStats = gamificationResponse.data || {};
+                    console.log('Gamification stats:', gamificationStats);
+                } catch (gamError) {
+                    console.warn('Could not fetch gamification stats:', gamError);
+                }
 
                 // Fetch user's points
-                const pointsResponse = await gamificationService.getUserPoints(userId);
+                let pointsData = { totalPoints: 0 };
+                try {
+                    const pointsResponse = await gamificationService.getUserPoints(userId);
+                    pointsData = pointsResponse.data || { totalPoints: 0 };
+                    console.log('Points data:', pointsData);
+                } catch (pointsError) {
+                    console.warn('Could not fetch points:', pointsError);
+                }
 
-                // Process the data
-                const events = eventsResponse.data || [];
-                const activities = gamificationResponse.data || {};
-                const points = pointsResponse.data || { totalPoints: 0 };
+                // Process the registration data
+                const registrations = eventsResponse.data || [];
+                console.log('Processing registrations:', registrations);
 
-                // Calculate statistics
-                const upcomingEvents = events.filter(event => new Date(event.startTime) > new Date()).length;
-                const attendedEvents = events.filter(event => event.status === 'ATTENDED').length;
-                const registeredEvents = events.length;
+                // Calculate statistics from registrations
+                const now = new Date();
 
-                // Set the statistics
+                // Count different types of events
+                let upcomingEvents = 0;
+                let attendedEvents = 0;
+                let registeredEvents = registrations.length;
+                let totalHours = 0;
+
+                // For each registration, we need to get the actual event details to calculate hours
+                const eventDetailsPromises = registrations.map(async (registration) => {
+                    try {
+                        const eventResponse = await eventService.getEventById(registration.eventId);
+                        const event = eventResponse.data;
+
+                        console.log(`Processing event ${registration.eventId}:`, {
+                            title: event.title,
+                            startTime: event.startTime,
+                            endTime: event.endTime,
+                            registrationStatus: registration.status,
+                            hasCheckIn: !!registration.checkInTime
+                        });
+
+                        const eventStart = new Date(event.startTime);
+                        const eventEnd = new Date(event.endTime);
+
+                        // Calculate event duration in hours
+                        const durationMs = eventEnd - eventStart;
+                        const durationHours = Math.max(0, durationMs / (1000 * 60 * 60)); // Convert to hours
+
+                        return {
+                            registration,
+                            event,
+                            eventStart,
+                            eventEnd,
+                            durationHours,
+                            isUpcoming: eventStart > now,
+                            isPast: eventEnd < now,
+                            isAttended: registration.status === 'ATTENDED' || !!registration.checkInTime
+                        };
+                    } catch (eventError) {
+                        console.warn(`Could not fetch event ${registration.eventId}:`, eventError);
+                        return null;
+                    }
+                });
+
+                // Wait for all event details
+                const eventDetails = (await Promise.all(eventDetailsPromises)).filter(Boolean);
+
+                console.log('Event details processed:', eventDetails);
+
+                // Calculate final statistics
+                eventDetails.forEach(({ isUpcoming, isAttended, durationHours }) => {
+                    if (isUpcoming) {
+                        upcomingEvents++;
+                    }
+                    if (isAttended) {
+                        attendedEvents++;
+                        totalHours += durationHours; // Only count hours for attended events
+                    }
+                });
+
+                // Alternative calculation: if we don't have event details, use registration data
+                if (eventDetails.length === 0 && registrations.length > 0) {
+                    console.log('Falling back to registration-only calculation');
+
+                    attendedEvents = registrations.filter(reg =>
+                        reg.status === 'ATTENDED' || !!reg.checkInTime
+                    ).length;
+
+                    // Estimate hours (assume 2 hours per attended event as fallback)
+                    totalHours = attendedEvents * 2;
+
+                    // For upcoming events, we'd need to check dates, but without event details we can't
+                    // So we'll try to get this from gamification stats or set to 0
+                }
+
+                console.log('Calculated statistics:', {
+                    upcomingEvents,
+                    attendedEvents,
+                    registeredEvents,
+                    totalHours: Math.round(totalHours),
+                    points: pointsData.totalPoints,
+                    badges: gamificationStats.badges || 0
+                });
+
+                // Set the final statistics
                 setStats({
                     upcomingEvents,
                     attendedEvents,
                     registeredEvents,
-                    points: points.totalPoints,
-                    badges: activities.badges || 0,
-                    averageRating: activities.averageRating || 0
+                    totalHours: Math.round(totalHours),
+                    points: pointsData.totalPoints || 0,
+                    badges: gamificationStats.badges || 0,
+                    averageRating: gamificationStats.averageRating || 0,
+                    level: gamificationStats.level || 1
                 });
+
             } catch (err) {
                 console.error('Error fetching statistics:', err);
                 setError(err.message || 'Failed to fetch statistics');
+
+                // Set fallback stats to prevent UI breaking
+                setStats({
+                    upcomingEvents: 0,
+                    attendedEvents: 0,
+                    registeredEvents: 0,
+                    totalHours: 0,
+                    points: 0,
+                    badges: 0,
+                    averageRating: 0,
+                    level: 1
+                });
             } finally {
                 setLoading(false);
             }
         };
 
-        if (userId) {
-            fetchStats();
-        }
+        fetchStats();
     }, [userId]);
 
     // Animation variants
@@ -106,6 +223,12 @@ const Statistics = ({ userId }) => {
             <div className="bg-white rounded-xl shadow-card border border-neutral-200 p-6">
                 <div className="text-center text-accent-600">
                     <p>Error loading statistics: {error}</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="btn btn-outline btn-sm mt-2"
+                    >
+                        Retry
+                    </button>
                 </div>
             </div>
         );
@@ -139,7 +262,7 @@ const Statistics = ({ userId }) => {
         },
         {
             label: 'Hours',
-            value: stats?.attendedEvents * 2 || 0, // Approximate hours spent at events
+            value: stats?.totalHours || 0,
             icon: ClockIcon,
             bgColor: 'bg-warning-50',
             textColor: 'text-warning-600',

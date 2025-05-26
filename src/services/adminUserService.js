@@ -1,35 +1,31 @@
-// src/services/adminUserService.js
+// src/services/adminUserService.js - Fixed to use correct API endpoints
 import api from './api';
 
-const ADMIN_USER_ENDPOINTS = {
+const USER_ENDPOINTS = {
     USERS: 'tukio-user-service/api/users',
-    ROLES: 'tukio-user-service/api/admin/roles',
-    STATS: 'tukio-user-service/api/admin/stats'
+    AUTH: 'tukio-user-service/api/auth',
 };
 
 class AdminUserService {
     // ========== User Management ==========
 
     /**
-     * Get all users with admin privileges
-     * @param {Object} params Query parameters
+     * Get all users (Admin access using regular users endpoint)
+     * According to the documentation, /api/users is admin-only
      */
     async getAllUsers(params = {}) {
         try {
             const queryParams = new URLSearchParams();
 
-            if (params.search) queryParams.append('search', params.search);
-            if (params.role) queryParams.append('role', params.role);
-            if (params.status) queryParams.append('status', params.status);
-            if (params.department) queryParams.append('department', params.department);
+            // Add any query parameters if needed
             if (params.page !== undefined) queryParams.append('page', params.page);
             if (params.size !== undefined) queryParams.append('size', params.size);
             if (params.sort) queryParams.append('sort', params.sort);
             if (params.direction) queryParams.append('direction', params.direction);
 
             const url = queryParams.toString()
-                ? `${ADMIN_USER_ENDPOINTS.USERS}?${queryParams.toString()}`
-                : ADMIN_USER_ENDPOINTS.USERS;
+                ? `${USER_ENDPOINTS.USERS}?${queryParams.toString()}`
+                : USER_ENDPOINTS.USERS;
 
             return await api.get(url);
         } catch (error) {
@@ -38,38 +34,25 @@ class AdminUserService {
     }
 
     /**
-     * Get user by ID with admin details
+     * Get user by ID (Admin or current user only)
      * @param {string|number} userId User ID
      */
     async getUserById(userId) {
         try {
-            return await api.get(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}`);
+            return await api.get(`${USER_ENDPOINTS.USERS}/${userId}`);
         } catch (error) {
             this.handleError(error);
         }
     }
 
     /**
-     * Create a new user (admin only)
-     * @param {Object} userData User data
-     */
-    async createUser(userData) {
-        try {
-            const response = await api.post(ADMIN_USER_ENDPOINTS.USERS, userData);
-            return response;
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Update user information (admin only)
+     * Update user information (Admin or current user only)
      * @param {string|number} userId User ID
      * @param {Object} userData Updated user data
      */
     async updateUser(userId, userData) {
         try {
-            const response = await api.put(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}`, userData);
+            const response = await api.put(`${USER_ENDPOINTS.USERS}/${userId}`, userData);
             return response;
         } catch (error) {
             this.handleError(error);
@@ -77,12 +60,12 @@ class AdminUserService {
     }
 
     /**
-     * Delete user account (admin only)
+     * Delete user account (Admin or current user only)
      * @param {string|number} userId User ID
      */
     async deleteUser(userId) {
         try {
-            const response = await api.delete(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}`);
+            const response = await api.delete(`${USER_ENDPOINTS.USERS}/${userId}`);
             return response;
         } catch (error) {
             this.handleError(error);
@@ -90,12 +73,13 @@ class AdminUserService {
     }
 
     /**
-     * Activate user account
+     * Change user password
      * @param {string|number} userId User ID
+     * @param {Object} passwordData Password data
      */
-    async activateUser(userId) {
+    async changePassword(userId, passwordData) {
         try {
-            const response = await api.put(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}/activate`);
+            const response = await api.put(`${USER_ENDPOINTS.USERS}/${userId}/password`, passwordData);
             return response;
         } catch (error) {
             this.handleError(error);
@@ -103,41 +87,13 @@ class AdminUserService {
     }
 
     /**
-     * Deactivate user account
+     * Update user interests
      * @param {string|number} userId User ID
+     * @param {Array} interests Array of interests
      */
-    async deactivateUser(userId) {
+    async updateUserInterests(userId, interests) {
         try {
-            const response = await api.put(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}/deactivate`);
-            return response;
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Reset user password (admin only)
-     * @param {string|number} userId User ID
-     * @param {string} newPassword New password
-     */
-    async resetUserPassword(userId, newPassword) {
-        try {
-            const response = await api.put(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}/reset-password`, {
-                newPassword
-            });
-            return response;
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Send password reset email
-     * @param {string|number} userId User ID
-     */
-    async sendPasswordResetEmail(userId) {
-        try {
-            const response = await api.post(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}/send-password-reset`);
+            const response = await api.put(`${USER_ENDPOINTS.USERS}/${userId}/interests`, interests);
             return response;
         } catch (error) {
             this.handleError(error);
@@ -145,13 +101,25 @@ class AdminUserService {
     }
 
     // ========== Role Management ==========
+    // Note: According to the documentation, these are the available role endpoints
 
     /**
-     * Get all available roles
+     * Get all available roles - Mock implementation since not explicitly documented
+     * Returns predefined roles based on the documentation
      */
     async getAllRoles() {
         try {
-            return await api.get(ADMIN_USER_ENDPOINTS.ROLES);
+            // Since the API doesn't have a dedicated roles endpoint,
+            // we'll return the roles mentioned in the documentation
+            const roles = [
+                { id: 1, name: 'USER' },
+                { id: 2, name: 'ADMIN' },
+                { id: 3, name: 'EVENT_ORGANIZER' },
+                { id: 4, name: 'FACULTY' },
+                { id: 5, name: 'STUDENT' }
+            ];
+
+            return { data: roles };
         } catch (error) {
             this.handleError(error);
         }
@@ -164,9 +132,7 @@ class AdminUserService {
      */
     async addUserRole(userId, roleName) {
         try {
-            const response = await api.put(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}/roles/add`, {
-                roleName
-            });
+            const response = await api.put(`${USER_ENDPOINTS.USERS}/${userId}/roles/add/${roleName}`);
             return response;
         } catch (error) {
             this.handleError(error);
@@ -180,41 +146,54 @@ class AdminUserService {
      */
     async removeUserRole(userId, roleName) {
         try {
-            const response = await api.put(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}/roles/remove`, {
-                roleName
-            });
+            const response = await api.put(`${USER_ENDPOINTS.USERS}/${userId}/roles/remove/${roleName}`);
             return response;
         } catch (error) {
             this.handleError(error);
         }
     }
 
+    // ========== User Search and Discovery ==========
+
     /**
-     * Update user roles (replace all roles)
+     * Search users by keyword
+     * @param {string} keyword Search keyword
+     */
+    async searchUsers(keyword) {
+        try {
+            return await api.get(`${USER_ENDPOINTS.USERS}/search?keyword=${encodeURIComponent(keyword)}`);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    /**
+     * Get users with similar interests
+     * @param {Array|string} interests Interests to search for
+     */
+    async getUsersByInterests(interests) {
+        try {
+            const interestsParam = Array.isArray(interests) ? interests.join(',') : interests;
+            return await api.get(`${USER_ENDPOINTS.USERS}/interests?interests=${encodeURIComponent(interestsParam)}`);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    // ========== User Status Management ==========
+    // Note: The documentation doesn't mention activate/deactivate endpoints
+    // These might need to be implemented using the update user endpoint
+
+    /**
+     * Activate user account (using update endpoint)
      * @param {string|number} userId User ID
-     * @param {Array} roles Array of role names
      */
-    async updateUserRoles(userId, roles) {
+    async activateUser(userId) {
         try {
-            const response = await api.put(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}/roles`, {
-                roles
-            });
-            return response;
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    // ========== Bulk Operations ==========
-
-    /**
-     * Bulk update users
-     * @param {Array} userUpdates Array of user updates
-     */
-    async bulkUpdateUsers(userUpdates) {
-        try {
-            const response = await api.put(`${ADMIN_USER_ENDPOINTS.USERS}/bulk-update`, {
-                updates: userUpdates
+            // Since there's no specific activate endpoint, we'll update the user status
+            const response = await api.put(`${USER_ENDPOINTS.USERS}/${userId}`, {
+                enabled: true,
+                accountNonLocked: true
             });
             return response;
         } catch (error) {
@@ -223,301 +202,58 @@ class AdminUserService {
     }
 
     /**
-     * Bulk delete users
-     * @param {Array} userIds Array of user IDs
-     */
-    async bulkDeleteUsers(userIds) {
-        try {
-            const response = await api.delete(`${ADMIN_USER_ENDPOINTS.USERS}/bulk-delete`, {
-                data: { userIds }
-            });
-            return response;
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Bulk activate users
-     * @param {Array} userIds Array of user IDs
-     */
-    async bulkActivateUsers(userIds) {
-        try {
-            const response = await api.put(`${ADMIN_USER_ENDPOINTS.USERS}/bulk-activate`, {
-                userIds
-            });
-            return response;
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Bulk deactivate users
-     * @param {Array} userIds Array of user IDs
-     */
-    async bulkDeactivateUsers(userIds) {
-        try {
-            const response = await api.put(`${ADMIN_USER_ENDPOINTS.USERS}/bulk-deactivate`, {
-                userIds
-            });
-            return response;
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    // ========== Statistics and Analytics ==========
-
-    /**
-     * Get user statistics
-     * @param {Object} dateRange Date range filter
-     */
-    async getUserStats(dateRange = {}) {
-        try {
-            const params = new URLSearchParams();
-            if (dateRange.startDate) params.append('startDate', dateRange.startDate);
-            if (dateRange.endDate) params.append('endDate', dateRange.endDate);
-
-            const url = params.toString()
-                ? `${ADMIN_USER_ENDPOINTS.STATS}?${params.toString()}`
-                : ADMIN_USER_ENDPOINTS.STATS;
-
-            return await api.get(url);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Get user growth analytics
-     * @param {string} period Period ('7d', '30d', '90d', '1y')
-     */
-    async getUserGrowthAnalytics(period = '30d') {
-        try {
-            return await api.get(`${ADMIN_USER_ENDPOINTS.STATS}/growth?period=${period}`);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Get user activity analytics
-     * @param {Object} params Analytics parameters
-     */
-    async getUserActivityAnalytics(params = {}) {
-        try {
-            const queryParams = new URLSearchParams();
-            if (params.period) queryParams.append('period', params.period);
-            if (params.groupBy) queryParams.append('groupBy', params.groupBy);
-
-            const url = queryParams.toString()
-                ? `${ADMIN_USER_ENDPOINTS.STATS}/activity?${queryParams.toString()}`
-                : `${ADMIN_USER_ENDPOINTS.STATS}/activity`;
-
-            return await api.get(url);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Get users by department analytics
-     */
-    async getUsersByDepartment() {
-        try {
-            return await api.get(`${ADMIN_USER_ENDPOINTS.STATS}/departments`);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Get users by role analytics
-     */
-    async getUsersByRole() {
-        try {
-            return await api.get(`${ADMIN_USER_ENDPOINTS.STATS}/roles`);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    // ========== Export and Import ==========
-
-    /**
-     * Export users data
-     * @param {string} format Export format ('csv', 'xlsx', 'json')
-     * @param {Object} filters Export filters
-     */
-    async exportUsers(format = 'csv', filters = {}) {
-        try {
-            const params = new URLSearchParams();
-            params.append('format', format);
-
-            Object.keys(filters).forEach(key => {
-                if (filters[key] !== undefined && filters[key] !== null) {
-                    params.append(key, filters[key]);
-                }
-            });
-
-            return await api.get(`${ADMIN_USER_ENDPOINTS.USERS}/export?${params.toString()}`, {
-                responseType: 'blob'
-            });
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Import users from file
-     * @param {File} file CSV or Excel file
-     * @param {Object} options Import options
-     */
-    async importUsers(file, options = {}) {
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            Object.keys(options).forEach(key => {
-                formData.append(key, options[key]);
-            });
-
-            return await api.post(`${ADMIN_USER_ENDPOINTS.USERS}/import`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    // ========== Search and Filtering ==========
-
-    /**
-     * Advanced user search
-     * @param {Object} searchCriteria Search criteria
-     */
-    async searchUsers(searchCriteria) {
-        try {
-            return await api.post(`${ADMIN_USER_ENDPOINTS.USERS}/search`, searchCriteria);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Get users with specific permissions
-     * @param {string} permission Permission name
-     */
-    async getUsersWithPermission(permission) {
-        try {
-            return await api.get(`${ADMIN_USER_ENDPOINTS.USERS}/permission/${permission}`);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Get inactive users
-     * @param {number} daysInactive Number of days of inactivity
-     */
-    async getInactiveUsers(daysInactive = 30) {
-        try {
-            return await api.get(`${ADMIN_USER_ENDPOINTS.USERS}/inactive?days=${daysInactive}`);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Get recently registered users
-     * @param {number} days Number of days to look back
-     */
-    async getRecentlyRegisteredUsers(days = 7) {
-        try {
-            return await api.get(`${ADMIN_USER_ENDPOINTS.USERS}/recent?days=${days}`);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    // ========== User Audit and Logs ==========
-
-    /**
-     * Get user audit log
+     * Deactivate user account (using update endpoint)
      * @param {string|number} userId User ID
-     * @param {Object} params Query parameters
      */
-    async getUserAuditLog(userId, params = {}) {
+    async deactivateUser(userId) {
         try {
-            const queryParams = new URLSearchParams();
-            if (params.action) queryParams.append('action', params.action);
-            if (params.startDate) queryParams.append('startDate', params.startDate);
-            if (params.endDate) queryParams.append('endDate', params.endDate);
-            if (params.page !== undefined) queryParams.append('page', params.page);
-            if (params.size !== undefined) queryParams.append('size', params.size);
-
-            const url = queryParams.toString()
-                ? `${ADMIN_USER_ENDPOINTS.USERS}/${userId}/audit-log?${queryParams.toString()}`
-                : `${ADMIN_USER_ENDPOINTS.USERS}/${userId}/audit-log`;
-
-            return await api.get(url);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Get user login history
-     * @param {string|number} userId User ID
-     * @param {Object} params Query parameters
-     */
-    async getUserLoginHistory(userId, params = {}) {
-        try {
-            const queryParams = new URLSearchParams();
-            if (params.startDate) queryParams.append('startDate', params.startDate);
-            if (params.endDate) queryParams.append('endDate', params.endDate);
-            if (params.page !== undefined) queryParams.append('page', params.page);
-            if (params.size !== undefined) queryParams.append('size', params.size);
-
-            const url = queryParams.toString()
-                ? `${ADMIN_USER_ENDPOINTS.USERS}/${userId}/login-history?${queryParams.toString()}`
-                : `${ADMIN_USER_ENDPOINTS.USERS}/${userId}/login-history`;
-
-            return await api.get(url);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    // ========== Notifications ==========
-
-    /**
-     * Send notification to user
-     * @param {string|number} userId User ID
-     * @param {Object} notificationData Notification content
-     */
-    async sendNotificationToUser(userId, notificationData) {
-        try {
-            return await api.post(`${ADMIN_USER_ENDPOINTS.USERS}/${userId}/notify`, notificationData);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    /**
-     * Send bulk notification to users
-     * @param {Array} userIds Array of user IDs
-     * @param {Object} notificationData Notification content
-     */
-    async sendBulkNotification(userIds, notificationData) {
-        try {
-            return await api.post(`${ADMIN_USER_ENDPOINTS.USERS}/bulk-notify`, {
-                userIds,
-                ...notificationData
+            // Since there's no specific deactivate endpoint, we'll update the user status
+            const response = await api.put(`${USER_ENDPOINTS.USERS}/${userId}`, {
+                enabled: false
             });
+            return response;
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    // ========== User Creation ==========
+
+    /**
+     * Create a new user (using registration endpoint)
+     * @param {Object} userData User data
+     */
+    async createUser(userData) {
+        try {
+            // Use the registration endpoint to create new users
+            const response = await api.post(`${USER_ENDPOINTS.AUTH}/register`, userData);
+            return response;
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    // ========== Helper Methods ==========
+
+    /**
+     * Get current user (for reference)
+     */
+    async getCurrentUser() {
+        try {
+            // This requires the username parameter according to the documentation
+            return await api.get(`${USER_ENDPOINTS.USERS}/me`);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    /**
+     * Get user public profile
+     * @param {string|number} userId User ID
+     */
+    async getUserProfile(userId) {
+        try {
+            return await api.get(`${USER_ENDPOINTS.USERS}/profile/${userId}`);
         } catch (error) {
             this.handleError(error);
         }
@@ -575,7 +311,7 @@ class AdminUserService {
      */
     validateUserData(userData) {
         const errors = [];
-        const required = ['firstName', 'lastName', 'email', 'department'];
+        const required = ['firstName', 'lastName', 'email'];
 
         // Check required fields
         required.forEach(field => {
@@ -592,11 +328,6 @@ class AdminUserService {
             }
         }
 
-        // Validate roles
-        if (userData.roles && (!Array.isArray(userData.roles) || userData.roles.length === 0)) {
-            errors.push('At least one role must be assigned');
-        }
-
         return {
             isValid: errors.length === 0,
             errors
@@ -611,11 +342,6 @@ class AdminUserService {
     formatUserData(userData) {
         const formatted = { ...userData };
 
-        // Ensure roles is an array
-        if (formatted.roles && !Array.isArray(formatted.roles)) {
-            formatted.roles = [formatted.roles];
-        }
-
         // Remove empty strings and null values
         Object.keys(formatted).forEach(key => {
             if (formatted[key] === '' || formatted[key] === null) {
@@ -628,10 +354,21 @@ class AdminUserService {
 
     /**
      * Get user status display information
-     * @param {string} status User status
+     * @param {Object} user User object
      * @returns {Object} Status display info
      */
-    getUserStatusInfo(status) {
+    getUserStatusInfo(user) {
+        // Determine status based on user properties from the API
+        let status = 'ACTIVE';
+
+        if (!user.enabled) {
+            status = 'INACTIVE';
+        } else if (!user.accountNonLocked) {
+            status = 'SUSPENDED';
+        } else if (!user.accountNonExpired) {
+            status = 'EXPIRED';
+        }
+
         const statusMap = {
             'ACTIVE': {
                 label: 'Active',
@@ -643,15 +380,15 @@ class AdminUserService {
                 color: 'error',
                 description: 'User cannot access the system'
             },
-            'PENDING': {
-                label: 'Pending',
-                color: 'warning',
-                description: 'User registration pending approval'
-            },
             'SUSPENDED': {
                 label: 'Suspended',
                 color: 'error',
-                description: 'User temporarily suspended'
+                description: 'User account is locked'
+            },
+            'EXPIRED': {
+                label: 'Expired',
+                color: 'warning',
+                description: 'User account has expired'
             }
         };
 

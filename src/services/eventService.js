@@ -5,7 +5,7 @@ const EVENT_ENDPOINTS = {
     EVENTS: 'tukio-events-service/api/events',
     CATEGORIES: 'tukio-events-service/api/event-categories',
     REGISTRATIONS: 'tukio-events-service/api/event-registrations',
-    ADMIN: 'tukio-events-service/api/admin/events'
+    ADMIN: 'tukio-events-service/api/events'
 };
 
 class EventService {
@@ -163,6 +163,186 @@ class EventService {
         } catch (error) {
             this.handleError(error);
         }
+    }
+
+    // ========== Attendance Methods ==========
+
+    /**
+     * Record event attendance
+     * @param {string|number} eventId Event ID
+     * @param {Object} attendanceData Attendance data
+     */
+    async recordAttendance(eventId, attendanceData) {
+        try {
+            console.log('=== ATTENDANCE REQUEST DEBUG ===');
+            console.log('Event ID:', eventId);
+            console.log('Attendance Data:', JSON.stringify(attendanceData, null, 2));
+            console.log('Request URL:', `${EVENT_ENDPOINTS.EVENTS}/${eventId}/attendance`);
+            console.log('Request Method: POST');
+            console.log('================================');
+
+            const response = await api.post(`${EVENT_ENDPOINTS.EVENTS}/${eventId}/attendance`, attendanceData);
+            this.clearEventsCache();
+            return response;
+        } catch (error) {
+            console.error('=== ATTENDANCE REQUEST FAILED ===');
+            console.error('Error:', error);
+            console.error('Error Response:', error.response);
+            console.error('Error Data:', error.response?.data);
+            console.error('================================');
+            this.handleError(error);
+        }
+    }
+
+    /**
+     * Get current user's attendance for an event
+     * @param {string|number} eventId Event ID
+     */
+    async getMyAttendance(eventId) {
+        try {
+            return await api.get(`${EVENT_ENDPOINTS.EVENTS}/${eventId}/attendance/me`);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    /**
+     * Get all attendees for an event (organizer/admin only)
+     * @param {string|number} eventId Event ID
+     */
+    async getEventAttendees(eventId) {
+        try {
+            return await api.get(`${EVENT_ENDPOINTS.EVENTS}/${eventId}/attendees`);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    /**
+     * Check if user can mark attendance for an event
+     * @param {Object} event Event object
+     * @returns {boolean} True if user can mark attendance
+     */
+    canMarkAttendance(event) {
+        if (!event) return false;
+
+        const now = new Date();
+        const eventStart = new Date(event.startTime);
+
+        // Can mark attendance if event has started
+        return now >= eventStart;
+    }
+
+    // ========== Rating Methods ==========
+
+    /**
+     * Submit event rating
+     * @param {string|number} eventId Event ID
+     * @param {Object} ratingData Rating data
+     */
+    async submitEventRating(eventId, ratingData) {
+        try {
+            const response = await api.post(`${EVENT_ENDPOINTS.EVENTS}/${eventId}/rating`, ratingData);
+            this.clearEventsCache();
+            return response;
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    /**
+     * Get current user's rating for an event
+     * @param {string|number} eventId Event ID
+     */
+    async getMyRating(eventId) {
+        try {
+            return await api.get(`${EVENT_ENDPOINTS.EVENTS}/${eventId}/rating/me`);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    /**
+     * Get all ratings for an event
+     * @param {string|number} eventId Event ID
+     * @param {Object} params Query parameters
+     */
+    async getEventRatings(eventId, params = {}) {
+        try {
+            const queryParams = new URLSearchParams();
+            if (params.page !== undefined) queryParams.append('page', params.page);
+            if (params.size !== undefined) queryParams.append('size', params.size);
+            if (params.sort) queryParams.append('sort', params.sort);
+
+            const url = queryParams.toString()
+                ? `${EVENT_ENDPOINTS.EVENTS}/${eventId}/ratings?${queryParams.toString()}`
+                : `${EVENT_ENDPOINTS.EVENTS}/${eventId}/ratings`;
+
+            return await api.get(url);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    /**
+     * Get event rating summary/statistics
+     * @param {string|number} eventId Event ID
+     */
+    async getEventRatingSummary(eventId) {
+        try {
+            return await api.get(`${EVENT_ENDPOINTS.EVENTS}/${eventId}/ratings/summary`);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    /**
+     * Check if user can rate an event
+     * @param {Object} event Event object
+     * @param {Object} attendance User's attendance record
+     * @returns {boolean} True if user can rate the event
+     */
+    canRateEvent(event, attendance) {
+        if (!event || !attendance) return false;
+
+        const now = new Date();
+        const eventEnd = new Date(event.endTime);
+
+        // Can rate if event has ended AND user attended
+        return now >= eventEnd && attendance.attended === true;
+    }
+
+    /**
+     * Validate rating data
+     * @param {Object} ratingData Rating data to validate
+     * @returns {Object} Validation result
+     */
+    validateRatingData(ratingData) {
+        const errors = [];
+
+        // Validate overall rating
+        if (!ratingData.overallRating || ratingData.overallRating < 1 || ratingData.overallRating > 5) {
+            errors.push('Overall rating must be between 1 and 5 stars');
+        }
+
+        // Validate category ratings if provided
+        if (ratingData.categoryRatings) {
+            Object.entries(ratingData.categoryRatings).forEach(([category, rating]) => {
+                if (rating < 1 || rating > 5) {
+                    errors.push(`${category} rating must be between 1 and 5 stars`);
+                }
+            });
+        }
+
+        // Validate comment length
+        if (ratingData.comment && ratingData.comment.length > 1000) {
+            errors.push('Comment must not exceed 1000 characters');
+        }
+
+        return {
+            isValid: errors.length === 0,
+            errors
+        };
     }
 
     // ========== Category Methods ==========
@@ -1177,7 +1357,6 @@ class EventService {
     }
 
     // ========== Error Handling Helpers ==========
-
     /**
      * Handle API errors with user-friendly messages
      * @param {Error} error The error object
@@ -1190,7 +1369,6 @@ class EventService {
                 case 400:
                     throw new Error(data.message || 'Invalid request. Please check your input.');
                 case 401:
-                    // Clear auth token and redirect to login
                     localStorage.removeItem('token');
                     window.location.href = '/login';
                     throw new Error('Your session has expired. Please log in again.');
@@ -1201,7 +1379,6 @@ class EventService {
                 case 409:
                     throw new Error(data.message || 'Conflict: This action cannot be completed due to a conflict.');
                 case 422:
-                    // Validation errors
                     if (data.errors && Array.isArray(data.errors)) {
                         const errorMessages = data.errors.map(err => err.message).join(', ');
                         throw new Error(`Validation error: ${errorMessages}`);
@@ -1222,6 +1399,7 @@ class EventService {
             throw new Error('An unexpected error occurred. Please try again.');
         }
     }
+
 
     // ========== Cache Management ==========
 

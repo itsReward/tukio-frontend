@@ -1,3 +1,4 @@
+// src/pages/EventDetailPage.jsx - Enhanced with attendance and rating functionality
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -12,6 +13,9 @@ import gamificationService from '../services/gamificationService';
 // Components
 import Loader from '../components/common/Loader';
 import Modal from '../components/common/Modal';
+import AttendanceModal from '../components/events/AttendanceModal';
+import RatingModal from '../components/events/RatingModal';
+import RecommendationsWidget from "../components/common/RecommendationsWidget.jsx";
 
 // Icons
 import {
@@ -24,9 +28,10 @@ import {
     StarIcon,
     CheckIcon,
     ArrowLeftIcon,
-    UserPlusIcon
+    UserPlusIcon,
+    CheckCircleIcon,
+    ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
-import RecommendationsWidget from "../components/common/RecommendationsWidget.jsx";
 
 const EventDetailPage = () => {
     const { id } = useParams();
@@ -34,15 +39,24 @@ const EventDetailPage = () => {
     const { isAuthenticated, currentUser } = useAuth();
     const { trackView, trackRegistration, trackShare, trackRating } = useEventTracking();
 
+    // Track attendance function
+    const trackAttendance = async (eventId) => {
+        if (!currentUser?.id || !eventId) return;
+        // This would be implemented in the recommendations service
+        // For now, we'll just log it
+        console.log('Tracking attendance for event:', eventId);
+    };
+
     const [event, setEvent] = useState(null);
     const [venue, setVenue] = useState(null);
     const [loading, setLoading] = useState(true);
     const [registrationStatus, setRegistrationStatus] = useState(null);
+    const [attendance, setAttendance] = useState(null);
+    const [rating, setRating] = useState(null);
+    const [ratingSummary, setRatingSummary] = useState(null);
     const [isRegistering, setIsRegistering] = useState(false);
+    const [showAttendanceModal, setShowAttendanceModal] = useState(false);
     const [showRatingModal, setShowRatingModal] = useState(false);
-    const [rating, setRating] = useState(0);
-    const [feedback, setFeedback] = useState('');
-    const [submittingFeedback, setSubmittingFeedback] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [viewStartTime, setViewStartTime] = useState(null);
 
@@ -70,16 +84,44 @@ const EventDetailPage = () => {
                     }
                 }
 
-                // If user is logged in, check registration status
+                // If user is logged in, check registration status, attendance, and rating
                 if (isAuthenticated && currentUser?.id) {
                     try {
+                        // Check registration status
                         const registrationsResponse = await eventService.getRegistrationsByUser(currentUser.id);
                         const userRegistration = registrationsResponse.data.find(reg => reg.eventId === parseInt(id));
                         if (userRegistration) {
                             setRegistrationStatus(userRegistration.status);
                         }
+
+                        // Check attendance status
+                        try {
+                            const attendanceResponse = await eventService.getMyAttendance(id);
+                            setAttendance(attendanceResponse.data);
+                        } catch (error) {
+                            // User hasn't marked attendance yet
+                            setAttendance(null);
+                        }
+
+                        // Check rating
+                        try {
+                            const ratingResponse = await eventService.getMyRating(id);
+                            setRating(ratingResponse.data);
+                        } catch (error) {
+                            // User hasn't rated yet
+                            setRating(null);
+                        }
+
+                        // Get rating summary
+                        try {
+                            const ratingSummaryResponse = await eventService.getEventRatingSummary(id);
+                            setRatingSummary(ratingSummaryResponse.data);
+                        } catch (error) {
+                            // No ratings yet
+                            setRatingSummary(null);
+                        }
                     } catch (error) {
-                        console.error('Error checking registration status:', error);
+                        console.error('Error checking user status:', error);
                     }
                 }
             } catch (error) {
@@ -187,31 +229,88 @@ const EventDetailPage = () => {
         }
     };
 
-    // Handle rating submission
-    const handleSubmitRating = async () => {
-        if (!isAuthenticated || !rating) {
+    // Handle attendance update
+    const handleAttendanceUpdate = async (attended) => {
+        if (!isAuthenticated || !currentUser?.id) {
             return;
         }
 
         try {
-            setSubmittingFeedback(true);
-            await eventService.submitFeedback(parseInt(id), currentUser.id, feedback, rating);
+            // Debug: Log the entire currentUser object
+            console.log('Full currentUser object:', currentUser);
+            console.log('currentUser.id:', currentUser.id);
+            console.log('typeof currentUser.id:', typeof currentUser.id);
+
+            const attendanceData = {
+                userId: currentUser.id, // Make sure this is the user ID, not username
+                attended: attended
+            };
+
+            console.log('Sending attendance data:', JSON.stringify(attendanceData, null, 2)); // Debug log
+
+            const response = await eventService.recordAttendance(id, attendanceData);
+            setAttendance(response.data);
+
+            // Record activity for gamification if attended
+            if (attended) {
+                await gamificationService.recordEventAttendance(currentUser.id, parseInt(id));
+                await trackAttendance(parseInt(id));
+            }
+
+            toast.success(`Attendance ${attended ? 'confirmed' : 'updated'} successfully!`);
+
+            // If user can now rate, show notification
+            if (attended && eventService.canRateEvent(event, response.data)) {
+                setTimeout(() => {
+                    toast.success('You can now rate this event!', {
+                        duration: 4000,
+                        icon: '⭐'
+                    });
+                }, 1000);
+            }
+        } catch (error) {
+            console.error('Error updating attendance:', error);
+            toast.error(error.response?.data?.message || 'Failed to update attendance');
+            throw error; // Re-throw to handle in modal
+        }
+    };
+
+    // Handle rating submission
+    const handleRatingSubmit = async (ratingData) => {
+        if (!isAuthenticated || !currentUser?.id) {
+            return;
+        }
+
+        try {
+            const submitData = {
+                ...ratingData,
+                userId: currentUser.id, // Make sure this is the user ID, not username
+                userName: `${currentUser.firstName} ${currentUser.lastName}` // Add userName for display
+            };
+
+            console.log('Sending rating data:', submitData); // Debug log
+
+            const response = await eventService.submitEventRating(id, submitData);
+
+            setRating(response.data);
 
             // Record activity for gamification
-            await gamificationService.recordEventRating(currentUser.id, parseInt(id), rating);
+            await gamificationService.recordEventRating(currentUser.id, parseInt(id), ratingData.overallRating);
+            await trackRating(parseInt(id), ratingData.overallRating);
 
-            // Track rating activity for recommendations
-            await trackRating(parseInt(id), rating);
+            // Refresh rating summary
+            try {
+                const ratingSummaryResponse = await eventService.getEventRatingSummary(id);
+                setRatingSummary(ratingSummaryResponse.data);
+            } catch (error) {
+                console.error('Error refreshing rating summary:', error);
+            }
 
-            toast.success('Thank you for your feedback!');
-            setShowRatingModal(false);
-            setRating(0);
-            setFeedback('');
+            toast.success(rating ? 'Rating updated successfully!' : 'Thank you for your rating!');
         } catch (error) {
-            console.error('Error submitting feedback:', error);
-            toast.error('Failed to submit feedback');
-        } finally {
-            setSubmittingFeedback(false);
+            console.error('Error submitting rating:', error);
+            toast.error(error.response?.data?.message || 'Failed to submit rating');
+            throw error; // Re-throw to handle in modal
         }
     };
 
@@ -270,7 +369,7 @@ const EventDetailPage = () => {
         if (!eventStart) return 'Register';
 
         if (eventStart < now) {
-            return 'Event has ended';
+            return 'Event has started';
         }
 
         switch (registrationStatus) {
@@ -312,17 +411,16 @@ const EventDetailPage = () => {
         return true;
     };
 
-    // Check if rating is possible
-    const canRate = () => {
-        if (!event || !isAuthenticated) return false;
+    // Check if user can mark attendance
+    const canMarkAttendance = () => {
+        if (!event || !isAuthenticated || registrationStatus !== 'REGISTERED') return false;
+        return eventService.canMarkAttendance(event);
+    };
 
-        const now = new Date();
-        const eventEnd = new Date(event.endTime);
-
-        if (eventEnd > now) return false;
-        if (registrationStatus !== 'ATTENDED') return false;
-
-        return true;
+    // Check if user can rate event
+    const canRateEvent = () => {
+        if (!event || !isAuthenticated || !attendance) return false;
+        return eventService.canRateEvent(event, attendance);
     };
 
     // Calculate progress to event
@@ -425,6 +523,30 @@ const EventDetailPage = () => {
                                                 'Completed'}
                                     </span>
                                 </div>
+
+                                {/* User Status Badges */}
+                                {isAuthenticated && (
+                                    <div className="absolute bottom-4 left-4 flex flex-wrap gap-2">
+                                        {registrationStatus === 'REGISTERED' && (
+                                            <span className="badge bg-success-500 text-white">
+                                                <CheckCircleIcon className="h-4 w-4 mr-1" />
+                                                Registered
+                                            </span>
+                                        )}
+                                        {attendance?.attended === true && (
+                                            <span className="badge bg-blue-500 text-white">
+                                                <ClipboardDocumentListIcon className="h-4 w-4 mr-1" />
+                                                Attended
+                                            </span>
+                                        )}
+                                        {rating && (
+                                            <span className="badge bg-amber-500 text-white">
+                                                <StarIcon className="h-4 w-4 mr-1" />
+                                                Rated
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Event Info */}
@@ -479,6 +601,32 @@ const EventDetailPage = () => {
                                     </div>
                                 </div>
 
+                                {/* Rating Summary */}
+                                {ratingSummary && ratingSummary.totalRatings > 0 && (
+                                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                <div className="flex items-center">
+                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                        <StarIcon
+                                                            key={star}
+                                                            className={`h-5 w-5 ${
+                                                                star <= Math.round(ratingSummary.averageRating)
+                                                                    ? 'text-amber-400 fill-current'
+                                                                    : 'text-neutral-300'
+                                                            }`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <span className="ml-2 text-sm font-medium text-amber-800">
+                                                    {ratingSummary.averageRating.toFixed(1)}
+                                                    ({ratingSummary.totalRatings} rating{ratingSummary.totalRatings !== 1 ? 's' : ''})
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Event Description */}
                                 <div className="mb-6">
                                     <h2 className="text-xl font-semibold text-neutral-900 mb-3">About This Event</h2>
@@ -525,6 +673,7 @@ const EventDetailPage = () => {
 
                                 {/* Action Buttons */}
                                 <div className="flex flex-col sm:flex-row gap-4 border-t border-neutral-200 pt-6">
+                                    {/* Registration Button */}
                                     {canRegister() ? (
                                         <button
                                             onClick={handleRegister}
@@ -563,6 +712,7 @@ const EventDetailPage = () => {
                                         </button>
                                     )}
 
+                                    {/* Cancel Registration Button */}
                                     {canCancelRegistration() && (
                                         <button
                                             onClick={handleCancelRegistration}
@@ -573,6 +723,33 @@ const EventDetailPage = () => {
                                         </button>
                                     )}
 
+                                    {/* Attendance Button */}
+                                    {canMarkAttendance() && (
+                                        <button
+                                            onClick={() => setShowAttendanceModal(true)}
+                                            className={`btn flex-1 ${
+                                                attendance ? 'btn-outline' : 'btn-secondary'
+                                            }`}
+                                        >
+                                            <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
+                                            {attendance ? 'Update Attendance' : 'Mark Attendance'}
+                                        </button>
+                                    )}
+
+                                    {/* Rating Button */}
+                                    {canRateEvent() && (
+                                        <button
+                                            onClick={() => setShowRatingModal(true)}
+                                            className={`btn flex-1 ${
+                                                rating ? 'btn-outline' : 'btn-accent'
+                                            }`}
+                                        >
+                                            <StarIcon className="h-5 w-5 mr-2" />
+                                            {rating ? 'Update Rating' : 'Rate Event'}
+                                        </button>
+                                    )}
+
+                                    {/* Share Button */}
                                     <button
                                         onClick={() => setShowShareModal(true)}
                                         className="btn btn-outline flex-1"
@@ -580,16 +757,6 @@ const EventDetailPage = () => {
                                         <ShareIcon className="h-5 w-5 mr-2" />
                                         Share
                                     </button>
-
-                                    {canRate() && (
-                                        <button
-                                            onClick={() => setShowRatingModal(true)}
-                                            className="btn btn-outline flex-1"
-                                        >
-                                            <StarIcon className="h-5 w-5 mr-2" />
-                                            Rate Event
-                                        </button>
-                                    )}
                                 </div>
                             </div>
                         </motion.div>
@@ -597,12 +764,98 @@ const EventDetailPage = () => {
 
                     {/* Sidebar */}
                     <div className="space-y-6">
+                        {/* User Status Card */}
+                        {isAuthenticated && registrationStatus && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.1 }}
+                                className="bg-white rounded-xl shadow-card border border-neutral-200 overflow-hidden"
+                            >
+                                <div className="p-5 border-b border-neutral-200">
+                                    <h2 className="text-lg font-semibold text-neutral-900">Your Status</h2>
+                                </div>
+                                <div className="p-5 space-y-4">
+                                    {/* Registration Status */}
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-neutral-600">Registration</span>
+                                        <span className={`badge ${
+                                            registrationStatus === 'REGISTERED' ? 'badge-success' :
+                                                registrationStatus === 'CANCELLED' ? 'badge-error' :
+                                                    'badge-neutral'
+                                        }`}>
+                                            {registrationStatus}
+                                        </span>
+                                    </div>
+
+                                    {/* Attendance Status */}
+                                    {attendance && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-neutral-600">Attendance</span>
+                                            <span className={`badge ${
+                                                attendance.attended ? 'badge-success' : 'badge-warning'
+                                            }`}>
+                                                {attendance.attended ? 'Attended' : 'Did Not Attend'}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {/* Rating Status */}
+                                    {rating && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-neutral-600">Your Rating</span>
+                                            <div className="flex items-center">
+                                                <div className="flex items-center mr-2">
+                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                        <StarIcon
+                                                            key={star}
+                                                            className={`h-4 w-4 ${
+                                                                star <= rating.overallRating
+                                                                    ? 'text-amber-400 fill-current'
+                                                                    : 'text-neutral-300'
+                                                            }`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <span className="text-sm font-medium">
+                                                    {rating.overallRating}/5
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Available Actions */}
+                                    <div className="pt-4 border-t border-neutral-200">
+                                        <h3 className="text-sm font-medium text-neutral-700 mb-3">Available Actions</h3>
+                                        <div className="space-y-2">
+                                            {canMarkAttendance() && (
+                                                <button
+                                                    onClick={() => setShowAttendanceModal(true)}
+                                                    className="w-full text-left text-sm text-primary-600 hover:text-primary-800"
+                                                >
+                                                    {attendance ? '• Update attendance status' : '• Mark your attendance'}
+                                                </button>
+                                            )}
+                                            {canRateEvent() && (
+                                                <button
+                                                    onClick={() => setShowRatingModal(true)}
+                                                    className="w-full text-left text-sm text-primary-600 hover:text-primary-800"
+                                                >
+                                                    {rating ? '• Update your rating' : '• Rate this event'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+
                         {/* Venue Info Card */}
                         {venue && (
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5, delay: 0.1 }}
+                                transition={{ duration: 0.5, delay: 0.2 }}
                                 className="bg-white rounded-xl shadow-card border border-neutral-200 overflow-hidden"
                             >
                                 <div className="p-5 border-b border-neutral-200">
@@ -657,87 +910,27 @@ const EventDetailPage = () => {
                             userId={currentUser?.id}
                             maxItems={3}
                         />
-
                     </div>
                 </div>
             </div>
 
+            {/* Attendance Modal */}
+            <AttendanceModal
+                isOpen={showAttendanceModal}
+                onClose={() => setShowAttendanceModal(false)}
+                event={event}
+                currentAttendance={attendance}
+                onAttendanceUpdate={handleAttendanceUpdate}
+            />
+
             {/* Rating Modal */}
-            <Modal
+            <RatingModal
                 isOpen={showRatingModal}
                 onClose={() => setShowRatingModal(false)}
-                title="Rate This Event"
-            >
-                <div className="p-5">
-                    <p className="text-neutral-600 mb-4">
-                        Your feedback helps improve future events. Please rate your experience.
-                    </p>
-
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-neutral-700 mb-2">
-                            Your Rating
-                        </label>
-                        <div className="flex items-center space-x-2">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <button
-                                    key={star}
-                                    type="button"
-                                    onClick={() => setRating(star)}
-                                    className={`rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
-                                        rating >= star ? 'text-amber-400' : 'text-neutral-300'
-                                    }`}
-                                >
-                                    <StarIcon
-                                        className={`h-8 w-8 ${
-                                            rating >= star ? 'fill-current' : 'stroke-current'
-                                        }`}
-                                    />
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="mb-4">
-                        <label htmlFor="feedback" className="block text-sm font-medium text-neutral-700 mb-2">
-                            Your Feedback (Optional)
-                        </label>
-                        <textarea
-                            id="feedback"
-                            name="feedback"
-                            rows={4}
-                            className="form-input"
-                            placeholder="Tell us about your experience..."
-                            value={feedback}
-                            onChange={(e) => setFeedback(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="flex justify-end space-x-3">
-                        <button
-                            type="button"
-                            onClick={() => setShowRatingModal(false)}
-                            className="btn btn-outline"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleSubmitRating}
-                            className="btn btn-primary"
-                            disabled={!rating || submittingFeedback}
-                        >
-                            {submittingFeedback ? (
-                                <>
-                                    <Loader size="sm" color="white" />
-                                    <span className="ml-2">Submitting...</span>
-                                </>
-                            ) : (
-                                'Submit Rating'
-                            )}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+                event={event}
+                currentRating={rating}
+                onRatingSubmit={handleRatingSubmit}
+            />
 
             {/* Share Modal */}
             <Modal
