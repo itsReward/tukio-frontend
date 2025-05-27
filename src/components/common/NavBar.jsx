@@ -1,4 +1,4 @@
-// src/components/common/NavBar.jsx - Updated to hide Home button when logged in
+// src/components/common/NavBar.jsx - Updated without MockApiToggle
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -12,7 +12,6 @@ import {
     ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import NotificationBell from './NotificationBell';
-import MockApiToggle from '../common/MockApiToggle';
 import AdminNavigation from '../admin/AdminNavigation';
 
 const NavBar = () => {
@@ -24,14 +23,12 @@ const NavBar = () => {
     const isHomePage = location.pathname === '/';
     const isAdminPage = location.pathname.startsWith('/admin');
 
-    // Navigation links - Updated to conditionally show Home button
+    // Navigation links
     const navigation = [
-        // Only show Home button when user is NOT authenticated
-        { name: 'Home', to: '/', authenticated: false, showWhenLoggedIn: false },
+        { name: 'Dashboard', to: '/dashboard', authenticated: true },
         { name: 'Events', to: '/events', authenticated: false },
         { name: 'Venues', to: '/venues', authenticated: false },
         { name: 'Leaderboard', to: '/leaderboard', authenticated: false },
-        { name: 'Dashboard', to: '/dashboard', authenticated: true }
     ];
 
     // User menu items
@@ -70,19 +67,6 @@ const NavBar = () => {
     const activeTextColorClass = (isHomePage && !scrolled) ? 'text-white' : 'text-primary-600';
     const logoBtnTextColorClass = (isHomePage && !scrolled) ? 'text-white' : 'text-primary-600';
 
-    // Filter navigation items based on authentication status
-    const getFilteredNavigation = () => {
-        return navigation.filter(item => {
-            // If item requires authentication and user is not authenticated, hide it
-            if (item.authenticated && !isAuthenticated) return false;
-
-            // If item has showWhenLoggedIn set to false and user is authenticated, hide it
-            if (item.showWhenLoggedIn === false && isAuthenticated) return false;
-
-            return true;
-        });
-    };
-
     return (
         <Disclosure
             as="nav"
@@ -111,21 +95,27 @@ const NavBar = () => {
                                     </Link>
                                 </div>
                                 <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                                    {getFilteredNavigation().map((item) => (
-                                        <NavLink
-                                            key={item.name}
-                                            to={item.to}
-                                            className={({ isActive }) =>
-                                                `inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200 ${
-                                                    isActive
-                                                        ? `${activeTextColorClass} border-b-2 border-primary-500`
-                                                        : `${textColorClass} ${hoverTextColorClass} hover:border-b-2 hover:border-neutral-300`
-                                                }`
-                                            }
-                                        >
-                                            {item.name}
-                                        </NavLink>
-                                    ))}
+                                    {navigation
+                                        .filter(item => {
+                                            // Check authentication requirement
+                                            if (item.authenticated && !isAuthenticated) return false;
+                                            return true;
+                                        })
+                                        .map((item) => (
+                                            <NavLink
+                                                key={item.name}
+                                                to={item.to}
+                                                className={({ isActive }) =>
+                                                    `inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200 ${
+                                                        isActive
+                                                            ? `${activeTextColorClass} border-b-2 border-primary-500`
+                                                            : `${textColorClass} ${hoverTextColorClass} hover:border-b-2 hover:border-neutral-300`
+                                                    }`
+                                                }
+                                            >
+                                                {item.name}
+                                            </NavLink>
+                                        ))}
 
                                     {/* Admin Panel Link for Admins */}
                                     {currentUser?.roles?.includes('ADMIN') && (
@@ -147,11 +137,6 @@ const NavBar = () => {
                             </div>
 
                             <div className="hidden sm:ml-6 sm:flex sm:items-center">
-                                {/* Mock API Toggle - Only show for non-admin pages */}
-                                {isAuthenticated && !isAdminPage && (
-                                    <MockApiToggle className="mr-4" />
-                                )}
-
                                 {isAuthenticated ? (
                                     <>
                                         {/* Notification bell */}
@@ -264,22 +249,24 @@ const NavBar = () => {
                     {/* Mobile menu */}
                     <Disclosure.Panel className="sm:hidden bg-white shadow-lg">
                         <div className="space-y-1 pt-2 pb-3">
-                            {getFilteredNavigation().map((item) => (
-                                <Disclosure.Button
-                                    key={item.name}
-                                    as={NavLink}
-                                    to={item.to}
-                                    className={({ isActive }) =>
-                                        `block py-2 pl-3 pr-4 text-base font-medium ${
-                                            isActive
-                                                ? 'text-primary-600 bg-primary-50 border-l-4 border-primary-500'
-                                                : 'text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 hover:border-l-4 hover:border-neutral-300'
-                                        }`
-                                    }
-                                >
-                                    {item.name}
-                                </Disclosure.Button>
-                            ))}
+                            {navigation
+                                .filter(item => !item.authenticated || (item.authenticated && isAuthenticated))
+                                .map((item) => (
+                                    <Disclosure.Button
+                                        key={item.name}
+                                        as={NavLink}
+                                        to={item.to}
+                                        className={({ isActive }) =>
+                                            `block py-2 pl-3 pr-4 text-base font-medium ${
+                                                isActive
+                                                    ? 'text-primary-600 bg-primary-50 border-l-4 border-primary-500'
+                                                    : 'text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 hover:border-l-4 hover:border-neutral-300'
+                                            }`
+                                        }
+                                    >
+                                        {item.name}
+                                    </Disclosure.Button>
+                                ))}
 
                             {/* Admin Panel Link in Mobile */}
                             {currentUser?.roles?.includes('ADMIN') && (
@@ -302,13 +289,6 @@ const NavBar = () => {
 
                         {isAuthenticated ? (
                             <div className="border-t border-neutral-200 pt-4 pb-3">
-                                {/* Mock API Toggle in mobile menu - Only show for non-admin pages */}
-                                {!isAdminPage && (
-                                    <div className="px-4 mb-4">
-                                        <MockApiToggle />
-                                    </div>
-                                )}
-
                                 <div className="flex items-center px-4">
                                     <div className="flex-shrink-0">
                                         {currentUser?.profilePictureUrl ? (

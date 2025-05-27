@@ -41,6 +41,7 @@ const ProfilePage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [userEvents, setUserEvents] = useState([]);
+    const [userBadges, setUserBadges] = useState([]);
 
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [passwordData, setPasswordData] = useState({
@@ -79,6 +80,10 @@ const ProfilePage = () => {
                 // Fetch user events
                 const eventsResponse = await eventService.getRegistrationsByUser(currentUser.id);
                 setUserEvents(eventsResponse.data);
+
+                //fetch gamification
+                const gamificationResponse = await gamificationService.getUserGamificationProfile(currentUser.id)
+                setUserBadges(gamificationResponse.data)
 
             } catch (error) {
                 console.error('Error fetching user data:', error);
@@ -741,11 +746,7 @@ const ProfilePage = () => {
                             <div className="p-6">
                                 <div className="divide-y divide-neutral-200">
                                     {/* This would be actual achievements from the backend */}
-                                    {[
-                                        { name: "First Event", description: "Attended your first campus event", date: "Oct 15, 2023", points: 50 },
-                                        { name: "Social Butterfly", description: "Attended 5 different event categories", date: "Nov 3, 2023", points: 100 },
-                                        { name: "Feedback Champion", description: "Rated 10 events you attended", date: "Dec 17, 2023", points: 75 }
-                                    ].map((achievement, index) => (
+                                    {userBadges.map((achievement, index) => (
                                         <div key={index} className="py-4 flex items-start">
                                             <div className="mr-4 h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700">
                                                 🏆

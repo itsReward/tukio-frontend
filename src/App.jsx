@@ -1,4 +1,4 @@
-// src/App.jsx - Updated with admin functionality (MockAPI conditionally used)
+// src/App.jsx - Updated without MockApiProvider
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -7,7 +7,6 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
-import { MockApiProvider } from './contexts/MockApiContext';
 import NotificationListener from './components/notifications/NotificationListener';
 
 // Layouts
@@ -47,77 +46,75 @@ import CreateEventWrapper from "./pages/CreateEventWrapper.jsx";
 function App() {
     return (
         <Router>
-            <MockApiProvider>
-                <ThemeProvider>
-                    <AuthProvider>
-                        <NotificationProvider>
-                            <Toaster position="top-right" />
-                            <NotificationListener />
-                            <Routes>
-                                {/* Public routes */}
+            <ThemeProvider>
+                <AuthProvider>
+                    <NotificationProvider>
+                        <Toaster position="top-right" />
+                        <NotificationListener />
+                        <Routes>
+                            {/* Public routes */}
+                            <Route element={<MainLayout />}>
+                                <Route path="/" element={<HomePage />} />
+                                <Route path="/events" element={<EventsPage />} />
+                                <Route path="/events/:id" element={<EventDetailPage />} />
+                                <Route path="/venues" element={<VenuesPage />} />
+                                <Route path="/venues/:id" element={<VenueDetailPage />} />
+                                <Route path="/leaderboard" element={<LeaderboardPage />} />
+                            </Route>
+
+                            {/* Auth routes */}
+                            <Route element={<AuthLayout />}>
+                                <Route path="/login" element={<LoginPage />} />
+                                <Route path="/register" element={<RegisterPage />} />
+                                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                            </Route>
+
+                            {/* Protected routes */}
+                            <Route element={<ProtectedRoute />}>
                                 <Route element={<MainLayout />}>
-                                    <Route path="/" element={<HomePage />} />
-                                    <Route path="/events" element={<EventsPage />} />
-                                    <Route path="/events/:id" element={<EventDetailPage />} />
-                                    <Route path="/venues" element={<VenuesPage />} />
-                                    <Route path="/venues/:id" element={<VenueDetailPage />} />
-                                    <Route path="/leaderboard" element={<LeaderboardPage />} />
+                                    <Route path="/dashboard" element={<DashboardPage />} />
+                                    <Route path="/profile" element={<ProfilePage />} />
+                                    <Route path="/settings" element={<SettingsPage />} />
+                                    <Route path="/events/create" element={<CreateEventWrapper />} />
+                                    <Route path="/events/my-events" element={<MyEventsPage />} />
+                                    <Route path="/notifications" element={<NotificationsPage />} />
                                 </Route>
+                            </Route>
 
-                                {/* Auth routes */}
-                                <Route element={<AuthLayout />}>
-                                    <Route path="/login" element={<LoginPage />} />
-                                    <Route path="/register" element={<RegisterPage />} />
-                                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                            {/* Admin-only protected routes */}
+                            <Route element={<AdminProtectedRoute />}>
+                                <Route element={<MainLayout />}>
+                                    {/* Admin Dashboard */}
+                                    <Route path="/admin" element={<AdminDashboardPageWrapper />} />
+                                    <Route path="/admin/dashboard" element={<AdminDashboardPageWrapper />} />
+
+                                    {/* User Management */}
+                                    <Route path="/admin/users" element={<AdminUsersPageWrapper />} />
+
+                                    {/* Venue Management */}
+                                    <Route path="/admin/venues" element={<AdminVenuesPageWrapper />} />
+                                    <Route path="/admin/venues/create" element={<VenueFormPage />} />
+                                    <Route path="/admin/venues/:id/edit" element={<VenueFormPage />} />
+
+                                    {/* Event Management */}
+                                    <Route path="/admin/events" element={<AdminEventsPageWrapper />} />
+                                    <Route path="/admin/events/:id/edit" element={<EventEditFormPage />} />
+
+                                    {/* Analytics & Reports */}
+                                    <Route path="/admin/analytics" element={<AdminDashboardPageWrapper />} />
+                                    <Route path="/admin/reports" element={<AdminDashboardPageWrapper />} />
+
+                                    {/* System Settings */}
+                                    <Route path="/admin/settings" element={<AdminDashboardPageWrapper />} />
                                 </Route>
+                            </Route>
 
-                                {/* Protected routes */}
-                                <Route element={<ProtectedRoute />}>
-                                    <Route element={<MainLayout />}>
-                                        <Route path="/dashboard" element={<DashboardPage />} />
-                                        <Route path="/profile" element={<ProfilePage />} />
-                                        <Route path="/settings" element={<SettingsPage />} />
-                                        <Route path="/events/create" element={<CreateEventWrapper />} />
-                                        <Route path="/events/my-events" element={<MyEventsPage />} />
-                                        <Route path="/notifications" element={<NotificationsPage />} />
-                                    </Route>
-                                </Route>
-
-                                {/* Admin-only protected routes - Note: MockAPI not used in admin functionality */}
-                                <Route element={<AdminProtectedRoute />}>
-                                    <Route element={<MainLayout />}>
-                                        {/* Admin Dashboard */}
-                                        <Route path="/admin" element={<AdminDashboardPageWrapper />} />
-                                        <Route path="/admin/dashboard" element={<AdminDashboardPageWrapper />} />
-
-                                        {/* User Management */}
-                                        <Route path="/admin/users" element={<AdminUsersPageWrapper />} />
-
-                                        {/* Venue Management */}
-                                        <Route path="/admin/venues" element={<AdminVenuesPageWrapper />} />
-                                        <Route path="/admin/venues/create" element={<VenueFormPage />} />
-                                        <Route path="/admin/venues/:id/edit" element={<VenueFormPage />} />
-
-                                        {/* Event Management */}
-                                        <Route path="/admin/events" element={<AdminEventsPageWrapper />} />
-                                        <Route path="/admin/events/:id/edit" element={<EventEditFormPage />} />
-
-                                        {/* Analytics & Reports */}
-                                        <Route path="/admin/analytics" element={<AdminDashboardPageWrapper />} />
-                                        <Route path="/admin/reports" element={<AdminDashboardPageWrapper />} />
-
-                                        {/* System Settings */}
-                                        <Route path="/admin/settings" element={<AdminDashboardPageWrapper />} />
-                                    </Route>
-                                </Route>
-
-                                {/* 404 Route */}
-                                <Route path="*" element={<NotFoundPage />} />
-                            </Routes>
-                        </NotificationProvider>
-                    </AuthProvider>
-                </ThemeProvider>
-            </MockApiProvider>
+                            {/* 404 Route */}
+                            <Route path="*" element={<NotFoundPage />} />
+                        </Routes>
+                    </NotificationProvider>
+                </AuthProvider>
+            </ThemeProvider>
         </Router>
     );
 }
