@@ -35,13 +35,38 @@ axiosInstance.interceptors.response.use(
         return response;
     },
     (error) => {
-        // Handle specific error codes
+        console.log('🔍 API Interceptor: Error caught:', error.response?.status);
+
         if (error.response) {
             switch (error.response.status) {
                 case 401:
+                    console.log('🔍 API Interceptor: 401 error, clearing token');
                     localStorage.removeItem('token');
-                    window.location.href = '/login';
+
+                    const currentPath = window.location.pathname;
+                    console.log('🔍 API Interceptor: Current path:', currentPath);
+
+                    // UPDATED: Don't redirect if on homepage or other public pages
+                    const publicPaths = ['/', '/events', '/venues', '/leaderboard', '/login', '/register', '/forgot-password'];
+                    const isPublicPath = publicPaths.includes(currentPath) ||
+                        currentPath.startsWith('/events/') ||
+                        currentPath.startsWith('/venues/');
+
+                    console.log('🔍 API Interceptor: Is public path:', isPublicPath);
+
+                    // CRITICAL: Only redirect if we're on a truly protected route
+                    const protectedPaths = ['/dashboard', '/profile', '/settings', '/admin', '/my-events'];
+                    const isProtectedPath = protectedPaths.some(path => currentPath.startsWith(path));
+
+                    if (isProtectedPath) {
+                        console.log('🔍 API Interceptor: Redirecting to /login from protected route');
+                        window.location.href = '/login';
+                    } else {
+                        console.log('🔍 API Interceptor: NOT redirecting - letting component handle error');
+                        // Let the component handle the error gracefully
+                    }
                     break;
+
                 case 403:
                     console.error('You do not have permission to access this resource');
                     break;
@@ -52,12 +77,8 @@ axiosInstance.interceptors.response.use(
                     console.error('An error occurred on the server');
                     break;
                 default:
-                    console.error(`Error ${error.response.status}: ${error.response.data.message}`);
+                    console.error(`Error ${error.response.status}: ${error.response.data?.message}`);
             }
-        } else if (error.request) {
-            console.error('No response received from the server');
-        } else {
-            console.error('Error setting up the request:', error.message);
         }
 
         return Promise.reject(error);

@@ -285,7 +285,7 @@ class EventService {
      * Get upcoming events
      * @param {number} limit Number of events to return
      */
-    async getUpcomingEvents(limit = 10) {
+    async getUpcomingEvents(limit = 4) {
         try {
             return await api.get(`${EVENT_ENDPOINTS.EVENTS}/upcoming?limit=${limit}`);
         } catch (error) {

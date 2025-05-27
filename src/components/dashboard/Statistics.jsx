@@ -1,32 +1,35 @@
+// src/components/dashboard/Statistics.jsx - Fixed to prevent object rendering error
 import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
-import {
-    CalendarIcon,
-    UserGroupIcon,
-    ClockIcon,
-    TrophyIcon,
-    TicketIcon,
-    StarIcon
-} from '@heroicons/react/24/outline';
 import eventService from '../../services/eventService';
 import gamificationService from '../../services/gamificationService';
 
-/**
- * Statistics Component
- * Displays user statistics on the dashboard
- */
+// Icons
+import {
+    CalendarIcon,
+    UserGroupIcon,
+    StarIcon,
+    TrophyIcon,
+    ClockIcon,
+    CheckCircleIcon
+} from '@heroicons/react/24/outline';
+
 const Statistics = ({ userId }) => {
-    const [stats, setStats] = useState(null);
+    const [stats, setStats] = useState({
+        upcomingEvents: 0,
+        attendedEvents: [], // Keep as array but don't render directly
+        registeredEvents: 0,
+        totalHours: 0,
+        points: 0,
+        level: 1,
+        badges: 0
+    });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchStats = async () => {
-            if (!userId) {
-                setLoading(false);
-                return;
-            }
+            if (!userId) return;
 
             try {
                 setLoading(true);
@@ -35,153 +38,114 @@ const Statistics = ({ userId }) => {
                 console.log('=== STATISTICS DEBUG ===');
                 console.log('Fetching stats for user ID:', userId);
 
-                // Fetch user's event registrations
+                // Fetch user's registered events
                 const eventsResponse = await eventService.getRegistrationsByUser(userId);
                 console.log('Events response:', eventsResponse.data);
 
-                // Fetch user's event registrations
-                const eventsAttendanceResponse = await eventService.getMyAttendedEvents(userId);
-                console.log('Events response:', eventsResponse.data);
-
-                // Fetch user's gamification statistics
-                let gamificationStats = {};
+                // Fetch attended events
+                let attendedEvents = [];
                 try {
-                    const gamificationResponse = await gamificationService.getUserActivityStats(userId);
-                    gamificationStats = gamificationResponse.data || {};
-                    console.log('Gamification stats:', gamificationStats);
-                } catch (gamError) {
-                    console.warn('Could not fetch gamification stats:', gamError);
+                    const attendedResponse = await eventService.getMyAttendedEvents(userId);
+                    console.log('Events response:', attendedResponse.data);
+                    attendedEvents = attendedResponse.data || [];
+                } catch (attendedError) {
+                    console.log('No attended events or error fetching:', attendedError.message);
                 }
 
-                // Fetch user's points
+                // Fetch gamification stats
+                let gamificationStats = { totalPoints: 0, level: 1, badgesEarned: 0 };
+                try {
+                    const gamificationResponse = await gamificationService.getUserGamificationProfile(userId);
+                    gamificationStats = gamificationResponse.data;
+                    console.log('Gamification stats:', gamificationStats);
+                } catch (gamError) {
+                    console.warn('Could not load gamification stats:', gamError);
+                }
+
+                // Fetch points data
                 let pointsData = { totalPoints: 0 };
                 try {
                     const pointsResponse = await gamificationService.getUserPoints(userId);
-                    pointsData = pointsResponse.data || { totalPoints: 0 };
+                    pointsData = pointsResponse.data;
                     console.log('Points data:', pointsData);
                 } catch (pointsError) {
-                    console.warn('Could not fetch points:', pointsError);
+                    console.warn('Could not load points data:', pointsError);
                 }
 
-                // Process the registration data
-                const registrations = eventsResponse.data || [];
-                console.log('Processing registrations:', registrations);
+                // Process the events data
+                const registrationsData = eventsResponse.data || [];
+                console.log('Processing registrations:', registrationsData);
 
-                const attendance = eventsAttendanceResponse.data || [];
-
-                // Calculate statistics from registrations
-                const now = new Date();
-
-                // Count different types of events
-                let upcomingEvents = 0;
-                let attendedEvents = attendance;
-                let registeredEvents = registrations.length;
-                let totalHours = 0;
-
-                // For each registration, we need to get the actual event details to calculate hours
-                const eventDetailsPromises = registrations.map(async (registration) => {
+                // Fetch detailed event info for each registration to get complete data
+                const eventDetailsPromises = registrationsData.map(async (registration) => {
                     try {
                         const eventResponse = await eventService.getEventById(registration.eventId);
-                        const event = eventResponse.data;
-
-                        console.log(`Processing event ${registration.eventId}:`, {
-                            title: event.title,
-                            startTime: event.startTime,
-                            endTime: event.endTime,
-                            registrationStatus: registration.status,
-                            hasCheckIn: !!registration.checkInTime
-                        });
-
-                        const eventStart = new Date(event.startTime);
-                        const eventEnd = new Date(event.endTime);
-
-                        // Calculate event duration in hours
-                        const durationMs = eventEnd - eventStart;
-                        const durationHours = Math.max(0, durationMs / (1000 * 60 * 60)); // Convert to hours
+                        const fullEvent = eventResponse.data;
 
                         return {
-                            registration,
-                            event,
-                            eventStart,
-                            eventEnd,
-                            durationHours,
-                            isUpcoming: eventStart > now,
-                            isPast: eventEnd < now,
-                            isAttended: registration.status === 'ATTENDED' || !!registration.checkInTime
+                            ...registration,
+                            title: fullEvent.title,
+                            startTime: fullEvent.startTime,
+                            endTime: fullEvent.endTime,
+                            registrationStatus: registration.status,
+                            hasCheckIn: registration.checkInTime !== null
                         };
-                    } catch (eventError) {
-                        console.warn(`Could not fetch event ${registration.eventId}:`, eventError);
-                        return null;
+                    } catch (error) {
+                        console.error(`Error fetching event ${registration.eventId}:`, error);
+                        return {
+                            ...registration,
+                            title: 'Unknown Event',
+                            startTime: new Date().toISOString(),
+                            endTime: new Date().toISOString(),
+                            registrationStatus: registration.status || 'REGISTERED',
+                            hasCheckIn: false
+                        };
                     }
                 });
 
-                // Wait for all event details
-                const eventDetails = (await Promise.all(eventDetailsPromises)).filter(Boolean);
-
+                const eventDetails = await Promise.all(eventDetailsPromises);
                 console.log('Event details processed:', eventDetails);
 
-                // Calculate final statistics
-                eventDetails.forEach(({ isUpcoming, isAttended, durationHours }) => {
-                    if (isUpcoming) {
-                        upcomingEvents++;
+                // Calculate statistics
+                const now = new Date();
+                const upcomingEvents = eventDetails.filter(event => {
+                    const eventDate = new Date(event.startTime);
+                    return eventDate > now && event.registrationStatus === 'REGISTERED';
+                }).length;
+
+                const registeredEvents = eventDetails.filter(event =>
+                    event.registrationStatus === 'REGISTERED' ||
+                    event.registrationStatus === 'ATTENDED'
+                ).length;
+
+                // Calculate total hours from attended events
+                const totalHours = attendedEvents.reduce((total, event) => {
+                    try {
+                        const start = new Date(event.startTime);
+                        const end = new Date(event.endTime);
+                        const hours = (end - start) / (1000 * 60 * 60);
+                        return total + (hours > 0 ? hours : 0);
+                    } catch (error) {
+                        return total;
                     }
-                    if (isAttended) {
-                        attendedEvents++;
-                        totalHours += durationHours; // Only count hours for attended events
-                    }
-                });
+                }, 0);
 
-                // Alternative calculation: if we don't have event details, use registration data
-                if (eventDetails.length === 0 && registrations.length > 0) {
-                    console.log('Falling back to registration-only calculation');
-
-                    attendedEvents = registrations.filter(reg =>
-                        reg.status === 'ATTENDED' || !!reg.checkInTime
-                    ).length;
-
-                    // Estimate hours (assume 2 hours per attended event as fallback)
-                    totalHours = attendedEvents * 2;
-
-                    // For upcoming events, we'd need to check dates, but without event details we can't
-                    // So we'll try to get this from gamification stats or set to 0
-                }
-
-                console.log('Calculated statistics:', {
+                const calculatedStats = {
                     upcomingEvents,
-                    attendedEvents,
+                    attendedEvents: attendedEvents, // Keep as array
                     registeredEvents,
                     totalHours: Math.round(totalHours),
-                    points: pointsData.totalPoints,
-                    badges: gamificationStats.badges || 0
-                });
+                    points: pointsData.totalPoints || gamificationStats.totalPoints || 0,
+                    level: gamificationStats.level || 1,
+                    badges: gamificationStats.badgesEarned || 0
+                };
 
-                // Set the final statistics
-                setStats({
-                    upcomingEvents,
-                    attendedEvents,
-                    registeredEvents,
-                    totalHours: Math.round(totalHours),
-                    points: pointsData.totalPoints || 0,
-                    badges: gamificationStats.badges || 0,
-                    averageRating: gamificationStats.averageRating || 0,
-                    level: gamificationStats.level || 1
-                });
+                console.log('Calculated statistics:', calculatedStats);
+                setStats(calculatedStats);
 
-            } catch (err) {
-                console.error('Error fetching statistics:', err);
-                setError(err.message || 'Failed to fetch statistics');
-
-                // Set fallback stats to prevent UI breaking
-                setStats({
-                    upcomingEvents: 0,
-                    attendedEvents: 0,
-                    registeredEvents: 0,
-                    totalHours: 0,
-                    points: 0,
-                    badges: 0,
-                    averageRating: 0,
-                    level: 1
-                });
+            } catch (error) {
+                console.error('Error fetching statistics:', error);
+                setError('Failed to load statistics');
             } finally {
                 setLoading(false);
             }
@@ -203,124 +167,98 @@ const Statistics = ({ userId }) => {
 
     const itemVariants = {
         hidden: { y: 20, opacity: 0 },
-        visible: {
-            y: 0,
-            opacity: 1,
-            transition: {
-                duration: 0.3
-            }
-        }
+        visible: { y: 0, opacity: 1, transition: { duration: 0.4 } }
     };
 
     if (loading) {
         return (
-            <div className="bg-white rounded-xl shadow-card border border-neutral-200 p-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    {[...Array(6)].map((_, index) => (
-                        <div key={index} className="h-24 bg-neutral-100 rounded-lg animate-pulse"></div>
-                    ))}
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[...Array(4)].map((_, index) => (
+                    <div key={index} className="bg-white rounded-xl shadow-card border border-neutral-200 p-6">
+                        <div className="animate-pulse">
+                            <div className="h-4 bg-neutral-200 rounded w-3/4 mb-2"></div>
+                            <div className="h-8 bg-neutral-200 rounded w-1/2"></div>
+                        </div>
+                    </div>
+                ))}
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="bg-white rounded-xl shadow-card border border-neutral-200 p-6">
-                <div className="text-center text-accent-600">
-                    <p>Error loading statistics: {error}</p>
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="btn btn-outline btn-sm mt-2"
-                    >
-                        Retry
-                    </button>
-                </div>
+            <div className="bg-accent-50 border border-accent-200 rounded-lg p-4">
+                <p className="text-accent-700">{error}</p>
             </div>
         );
     }
 
-    // Stats data
-    const statItems = [
+    const statCards = [
         {
-            label: 'Upcoming',
-            value: stats?.upcomingEvents || 0,
+            title: 'Upcoming Events',
+            value: stats.upcomingEvents,
             icon: CalendarIcon,
-            bgColor: 'bg-primary-50',
-            textColor: 'text-primary-600',
-            iconColor: 'text-primary-500'
+            color: 'primary',
+            description: 'Events you\'re registered for'
         },
         {
-            label: 'Registered',
-            value: stats?.registeredEvents || 0,
-            icon: TicketIcon,
-            bgColor: 'bg-secondary-50',
-            textColor: 'text-secondary-600',
-            iconColor: 'text-secondary-500'
+            title: 'Events Attended',
+            value: stats.attendedEvents.length, // Use .length to get count
+            icon: CheckCircleIcon,
+            color: 'success',
+            description: 'Events you\'ve participated in'
         },
         {
-            label: 'Attended',
-            value: stats?.attendedEvents || 0,
-            icon: UserGroupIcon,
-            bgColor: 'bg-success-50',
-            textColor: 'text-success-600',
-            iconColor: 'text-success-500'
-        },
-        {
-            label: 'Hours',
-            value: stats?.totalHours || 0,
-            icon: ClockIcon,
-            bgColor: 'bg-warning-50',
-            textColor: 'text-warning-600',
-            iconColor: 'text-warning-500'
-        },
-        {
-            label: 'Points',
-            value: stats?.points || 0,
+            title: 'Total Points',
+            value: stats.points,
             icon: TrophyIcon,
-            bgColor: 'bg-accent-50',
-            textColor: 'text-accent-600',
-            iconColor: 'text-accent-500'
+            color: 'accent',
+            description: `Level ${stats.level}`
         },
         {
-            label: 'Badges',
-            value: stats?.badges || 0,
+            title: 'Badges Earned',
+            value: stats.badges,
             icon: StarIcon,
-            bgColor: 'bg-blue-50',
-            textColor: 'text-blue-600',
-            iconColor: 'text-blue-500'
-        },
+            color: 'secondary',
+            description: 'Achievements unlocked'
+        }
     ];
 
     return (
         <motion.div
-            className="bg-white rounded-xl shadow-card border border-neutral-200 p-6"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
         >
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {statItems.map((item, index) => (
+            {statCards.map((card, index) => {
+                const Icon = card.icon;
+                return (
                     <motion.div
-                        key={index}
-                        className={`${item.bgColor} rounded-lg p-4 flex flex-col items-center justify-center text-center`}
+                        key={card.title}
                         variants={itemVariants}
+                        className="bg-white rounded-xl shadow-card border border-neutral-200 overflow-hidden hover:shadow-card-hover transition-shadow duration-200"
                     >
-                        <div className={`rounded-full ${item.bgColor} p-2 mb-2`}>
-                            <item.icon className={`h-6 w-6 ${item.iconColor}`} aria-hidden="true" />
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className={`p-3 rounded-lg bg-${card.color}-100`}>
+                                    <Icon className={`h-6 w-6 text-${card.color}-600`} />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <p className="text-2xl font-bold text-neutral-900">
+                                    {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
+                                </p>
+                                <p className="text-sm font-medium text-neutral-700">{card.title}</p>
+                                <p className="text-xs text-neutral-500">{card.description}</p>
+                            </div>
                         </div>
-                        <div className={`text-2xl font-bold ${item.textColor}`}>{item.value}</div>
-                        <div className="text-sm text-neutral-600">{item.label}</div>
                     </motion.div>
-                ))}
-            </div>
+                );
+            })}
         </motion.div>
     );
-};
-
-Statistics.propTypes = {
-    /** User ID to fetch statistics for */
-    userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired
 };
 
 export default Statistics;
