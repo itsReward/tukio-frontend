@@ -39,6 +39,10 @@ const Statistics = ({ userId }) => {
                 const eventsResponse = await eventService.getRegistrationsByUser(userId);
                 console.log('Events response:', eventsResponse.data);
 
+                // Fetch user's event registrations
+                const eventsAttendanceResponse = await eventService.getMyAttendedEvents(userId);
+                console.log('Events response:', eventsResponse.data);
+
                 // Fetch user's gamification statistics
                 let gamificationStats = {};
                 try {
@@ -63,12 +67,14 @@ const Statistics = ({ userId }) => {
                 const registrations = eventsResponse.data || [];
                 console.log('Processing registrations:', registrations);
 
+                const attendance = eventsAttendanceResponse.data || [];
+
                 // Calculate statistics from registrations
                 const now = new Date();
 
                 // Count different types of events
                 let upcomingEvents = 0;
-                let attendedEvents = 0;
+                let attendedEvents = attendance;
                 let registeredEvents = registrations.length;
                 let totalHours = 0;
 

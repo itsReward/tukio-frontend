@@ -1,4 +1,4 @@
-// src/pages/EventDetailPage.jsx - Enhanced with attendance and rating functionality
+// src/pages/EventDetailPage.jsx - Fixed attendance state management
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -42,8 +42,6 @@ const EventDetailPage = () => {
     // Track attendance function
     const trackAttendance = async (eventId) => {
         if (!currentUser?.id || !eventId) return;
-        // This would be implemented in the recommendations service
-        // For now, we'll just log it
         console.log('Tracking attendance for event:', eventId);
     };
 
@@ -60,12 +58,62 @@ const EventDetailPage = () => {
     const [showShareModal, setShowShareModal] = useState(false);
     const [viewStartTime, setViewStartTime] = useState(null);
 
+    // Fetch attendance data
+    const fetchAttendanceData = async () => {
+        if (!isAuthenticated || !currentUser?.id) return;
+
+        try {
+            console.log('=== FETCHING ATTENDANCE DATA ===');
+            console.log('Event ID:', id);
+            console.log('User ID:', currentUser.id);
+
+            // Try to get attendance record
+            const attendanceResponse = await eventService.getMyAttendance(id, currentUser.id);
+            console.log('Attendance response:', attendanceResponse.data);
+
+            if (attendanceResponse.data) {
+                setAttendance(attendanceResponse.data);
+                console.log('Set attendance state:', attendanceResponse.data);
+            } else {
+                console.log('No attendance record found');
+                setAttendance(null);
+            }
+        } catch (error) {
+            console.log('No attendance record found or error fetching attendance:', error.message);
+            setAttendance(null);
+        }
+    };
+
+    // Fetch rating data
+    const fetchRatingData = async () => {
+        if (!isAuthenticated || !currentUser?.id) return;
+
+        try {
+            // Check rating
+            const ratingResponse = await eventService.getMyRating(id, currentUser.id);
+            setRating(ratingResponse.data);
+        } catch (error) {
+            // User hasn't rated yet
+            setRating(null);
+        }
+
+        try {
+            // Get rating summary
+            const ratingSummaryResponse = await eventService.getEventRatingSummary(id);
+            setRatingSummary(ratingSummaryResponse.data);
+        } catch (error) {
+            // No ratings yet
+            setRatingSummary(null);
+        }
+    };
+
     useEffect(() => {
         const fetchEventData = async () => {
             try {
                 setLoading(true);
                 setViewStartTime(Date.now()); // Track when user started viewing
 
+                // Fetch event details
                 const eventResponse = await eventService.getEventById(id);
                 setEvent(eventResponse.data);
 
@@ -84,7 +132,7 @@ const EventDetailPage = () => {
                     }
                 }
 
-                // If user is logged in, check registration status, attendance, and rating
+                // If user is logged in, check registration status
                 if (isAuthenticated && currentUser?.id) {
                     try {
                         // Check registration status
@@ -93,37 +141,11 @@ const EventDetailPage = () => {
                         if (userRegistration) {
                             setRegistrationStatus(userRegistration.status);
                         }
-
-                        // Check attendance status
-                        try {
-                            const attendanceResponse = await eventService.getMyAttendance(id);
-                            setAttendance(attendanceResponse.data);
-                        } catch (error) {
-                            // User hasn't marked attendance yet
-                            setAttendance(null);
-                        }
-
-                        // Check rating
-                        try {
-                            const ratingResponse = await eventService.getMyRating(id);
-                            setRating(ratingResponse.data);
-                        } catch (error) {
-                            // User hasn't rated yet
-                            setRating(null);
-                        }
-
-                        // Get rating summary
-                        try {
-                            const ratingSummaryResponse = await eventService.getEventRatingSummary(id);
-                            setRatingSummary(ratingSummaryResponse.data);
-                        } catch (error) {
-                            // No ratings yet
-                            setRatingSummary(null);
-                        }
                     } catch (error) {
-                        console.error('Error checking user status:', error);
+                        console.error('Error checking registration status:', error);
                     }
                 }
+
             } catch (error) {
                 console.error('Error fetching event:', error);
                 toast.error('Failed to load event details');
@@ -144,6 +166,14 @@ const EventDetailPage = () => {
             }
         };
     }, [id, isAuthenticated, currentUser, trackView]);
+
+    // Separate useEffect for attendance and rating data
+    useEffect(() => {
+        if (isAuthenticated && currentUser?.id && event) {
+            fetchAttendanceData();
+            fetchRatingData();
+        }
+    }, [isAuthenticated, currentUser?.id, event, id]);
 
     // Format date
     const formatDate = (dateString) => {
@@ -229,27 +259,36 @@ const EventDetailPage = () => {
         }
     };
 
-    // Handle attendance update
+    // Handle attendance update - FIXED VERSION
     const handleAttendanceUpdate = async (attended) => {
         if (!isAuthenticated || !currentUser?.id) {
             return;
         }
 
         try {
-            // Debug: Log the entire currentUser object
-            console.log('Full currentUser object:', currentUser);
-            console.log('currentUser.id:', currentUser.id);
-            console.log('typeof currentUser.id:', typeof currentUser.id);
+            console.log('=== UPDATING ATTENDANCE ===');
+            console.log('Event ID:', id);
+            console.log('User ID:', currentUser.id);
+            console.log('Attended status:', attended);
 
             const attendanceData = {
-                userId: currentUser.id, // Make sure this is the user ID, not username
+                userId: currentUser.id,
                 attended: attended
             };
 
-            console.log('Sending attendance data:', JSON.stringify(attendanceData, null, 2)); // Debug log
+            console.log('Sending attendance data:', JSON.stringify(attendanceData, null, 2));
 
             const response = await eventService.recordAttendance(id, attendanceData);
-            setAttendance(response.data);
+            console.log('Attendance update response:', response.data);
+
+            // Update local state immediately
+            const updatedAttendance = {
+                ...response.data,
+                attended: attended // Ensure the attended status is set correctly
+            };
+
+            setAttendance(updatedAttendance);
+            console.log('Updated local attendance state:', updatedAttendance);
 
             // Record activity for gamification if attended
             if (attended) {
@@ -260,7 +299,7 @@ const EventDetailPage = () => {
             toast.success(`Attendance ${attended ? 'confirmed' : 'updated'} successfully!`);
 
             // If user can now rate, show notification
-            if (attended && eventService.canRateEvent(event, response.data)) {
+            if (attended && eventService.canRateEvent(event, updatedAttendance)) {
                 setTimeout(() => {
                     toast.success('You can now rate this event!', {
                         duration: 4000,
@@ -268,6 +307,12 @@ const EventDetailPage = () => {
                     });
                 }, 1000);
             }
+
+            // Refresh attendance data to ensure consistency
+            setTimeout(() => {
+                fetchAttendanceData();
+            }, 500);
+
         } catch (error) {
             console.error('Error updating attendance:', error);
             toast.error(error.response?.data?.message || 'Failed to update attendance');
@@ -284,11 +329,11 @@ const EventDetailPage = () => {
         try {
             const submitData = {
                 ...ratingData,
-                userId: currentUser.id, // Make sure this is the user ID, not username
-                userName: `${currentUser.firstName} ${currentUser.lastName}` // Add userName for display
+                userId: currentUser.id,
+                userName: `${currentUser.firstName} ${currentUser.lastName}`
             };
 
-            console.log('Sending rating data:', submitData); // Debug log
+            console.log('Sending rating data:', submitData);
 
             const response = await eventService.submitEventRating(id, submitData);
 
@@ -788,7 +833,7 @@ const EventDetailPage = () => {
                                         </span>
                                     </div>
 
-                                    {/* Attendance Status */}
+                                    {/* Attendance Status - Debug version */}
                                     {attendance && (
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm text-neutral-600">Attendance</span>
@@ -846,6 +891,17 @@ const EventDetailPage = () => {
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* Debug Info - Remove in production */}
+                                    {process.env.NODE_ENV === 'development' && (
+                                        <div className="pt-4 border-t border-neutral-200 bg-neutral-50 p-2 rounded text-xs">
+                                            <div><strong>Debug Info:</strong></div>
+                                            <div>Registration Status: {registrationStatus || 'None'}</div>
+                                            <div>Attendance Object: {attendance ? JSON.stringify(attendance) : 'None'}</div>
+                                            <div>Can Mark Attendance: {canMarkAttendance().toString()}</div>
+                                            <div>Can Rate Event: {canRateEvent().toString()}</div>
+                                        </div>
+                                    )}
                                 </div>
                             </motion.div>
                         )}
