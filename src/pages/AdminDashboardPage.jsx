@@ -30,13 +30,13 @@ const AdminDashboardPage = () => {
 
     // Mock data - in real app, this would come from APIs
     const mockStats = {
-        totalEvents: 45,
-        activeEvents: 23,
-        totalUsers: 1247,
-        newUsersThisWeek: 34,
-        totalVenues: 12,
-        occupiedVenues: 8,
-        pendingApprovals: 5,
+        totalEvents: 6,
+        activeEvents: 4,
+        totalUsers: 4,
+        newUsersThisWeek: 1,
+        totalVenues: 2,
+        occupiedVenues: 1,
+        pendingApprovals: 0,
         eventAttendanceRate: 87.5,
         popularCategory: 'Technology',
         systemHealth: 'healthy'
@@ -44,60 +44,16 @@ const AdminDashboardPage = () => {
 
     const mockRecentActivity = [
         {
-            id: 1,
-            type: 'event_created',
-            description: 'New event "AI Workshop" created by John Doe',
-            timestamp: '2025-05-25T10:30:00',
-            severity: 'info'
-        },
-        {
-            id: 2,
-            type: 'user_registered',
-            description: '5 new users registered in the last hour',
-            timestamp: '2025-05-25T09:45:00',
-            severity: 'success'
-        },
-        {
-            id: 3,
-            type: 'venue_booking',
-            description: 'Auditorium booked for "Annual Tech Conference"',
-            timestamp: '2025-05-25T09:15:00',
-            severity: 'info'
-        },
-        {
             id: 4,
             type: 'system_alert',
-            description: 'High server load detected - performance may be affected',
+            description: 'No recent activity',
             timestamp: '2025-05-25T08:30:00',
             severity: 'warning'
         }
     ];
 
     const mockPendingApprovals = [
-        {
-            id: 1,
-            type: 'event',
-            title: 'Machine Learning Bootcamp',
-            organizer: 'CS Department',
-            submittedAt: '2025-05-24T14:00:00',
-            category: 'Technology'
-        },
-        {
-            id: 2,
-            type: 'event',
-            title: 'Cultural Festival 2025',
-            organizer: 'Cultural Society',
-            submittedAt: '2025-05-24T12:30:00',
-            category: 'Cultural'
-        },
-        {
-            id: 3,
-            type: 'venue',
-            title: 'New Conference Room Setup',
-            organizer: 'Facilities Team',
-            submittedAt: '2025-05-24T10:15:00',
-            category: 'Infrastructure'
-        }
+
     ];
 
     useEffect(() => {

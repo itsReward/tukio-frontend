@@ -892,16 +892,6 @@ const EventDetailPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* Debug Info - Remove in production */}
-                                    {process.env.NODE_ENV === 'development' && (
-                                        <div className="pt-4 border-t border-neutral-200 bg-neutral-50 p-2 rounded text-xs">
-                                            <div><strong>Debug Info:</strong></div>
-                                            <div>Registration Status: {registrationStatus || 'None'}</div>
-                                            <div>Attendance Object: {attendance ? JSON.stringify(attendance) : 'None'}</div>
-                                            <div>Can Mark Attendance: {canMarkAttendance().toString()}</div>
-                                            <div>Can Rate Event: {canRateEvent().toString()}</div>
-                                        </div>
-                                    )}
                                 </div>
                             </motion.div>
                         )}

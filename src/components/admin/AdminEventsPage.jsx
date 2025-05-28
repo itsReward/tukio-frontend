@@ -51,7 +51,7 @@ const AdminEventsPage = () => {
 
             // Fetch events and categories from real API
             const [eventsResponse, categoriesResponse] = await Promise.all([
-                eventService.getAdminEvents(),
+                eventService.getAllEvents(),
                 eventService.getAllCategories()
             ]);
 
