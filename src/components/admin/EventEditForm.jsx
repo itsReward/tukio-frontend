@@ -36,6 +36,23 @@ const EventEditForm = () => {
     const [venues, setVenues] = useState([]);
     const [tagInput, setTagInput] = useState('');
 
+
+
+    console.log('🔍 EventEditForm rendered, event ID:', id);
+
+    // Helper function to format dates for datetime-local inputs
+    const formatDateTimeLocal = (isoString) => {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        // Format to YYYY-MM-DDTHH:MM for datetime-local input
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
     // Validation schema
     const validationSchema = Yup.object({
         title: Yup.string()
@@ -48,20 +65,15 @@ const EventEditForm = () => {
             .required('Description is required'),
         categoryId: Yup.number()
             .required('Category is required'),
-        startDate: Yup.date()
-            .min(new Date(), 'Start date cannot be in the past')
-            .required('Start date is required'),
-        startTime: Yup.string()
-            .required('Start time is required'),
-        endDate: Yup.date()
-            .test('is-after-start', 'End date cannot be before start date', function(value) {
-                const { startDate } = this.parent;
-                if (!startDate || !value) return true;
-                return new Date(value) >= new Date(startDate);
-            })
-            .required('End date is required'),
-        endTime: Yup.string()
-            .required('End time is required'),
+        startTime: Yup.string()  // Changed from startDate to startTime
+            .required('Start date and time is required'),
+        endTime: Yup.string()    // Changed from endDate to endTime
+            .required('End date and time is required')
+            .test('is-after-start', 'End time must be after start time', function(value) {
+                const { startTime } = this.parent;
+                if (!startTime || !value) return true;
+                return new Date(value) > new Date(startTime);
+            }),
         location: Yup.string()
             .required('Location is required'),
         organizer: Yup.string()
@@ -79,7 +91,9 @@ const EventEditForm = () => {
             .min(1, 'At least one tag is required'),
     });
 
-    // Initialize formik
+    // ... existing state declarations ...
+
+    // 2. Add debugging to your formik initialization
     const formik = useFormik({
         initialValues: {
             title: '',
@@ -97,19 +111,71 @@ const EventEditForm = () => {
         },
         validationSchema,
         onSubmit: async (values) => {
+            console.log('🚀 FORM SUBMIT TRIGGERED!');
+            console.log('Form values:', values);
+            console.log('Form valid:', formik.isValid);
+            console.log('Form errors:', formik.errors);
+
             try {
                 setSubmitting(true);
-                await eventService.updateEvent(id, values);
+                console.log('=== SUBMITTING EVENT UPDATE ===');
+
+                // Format the data properly for the API
+                const formattedData = {
+                    title: values.title.trim(),
+                    description: values.description.trim(),
+                    startTime: new Date(values.startTime).toISOString(),
+                    endTime: new Date(values.endTime).toISOString(),
+                    categoryId: parseInt(values.categoryId),
+                    location: values.location.trim(),
+                    venueId: values.venueId ? parseInt(values.venueId) : null,
+                    maxParticipants: parseInt(values.maxParticipants),
+                    organizer: values.organizer.trim(),
+                    imageUrl: values.imageUrl ? values.imageUrl.trim() : null,
+                    tags: values.tags || [],
+                    status: values.status
+                };
+
+                console.log('Formatted data for API:', formattedData);
+                console.log('Event ID:', id);
+
+                const response = await eventService.updateEvent(id, formattedData);
+                console.log('Update response:', response);
+
                 toast.success('Event updated successfully!');
                 navigate('/admin/events');
             } catch (error) {
-                console.error('Error updating event:', error);
-                toast.error(error.response?.data?.message || 'Failed to update event');
+                console.error('=== EVENT UPDATE ERROR ===');
+                console.error('Error object:', error);
+                console.error('Error response:', error.response?.data);
+                console.error('Error status:', error.response?.status);
+                console.error('Error message:', error.message);
+
+                const errorMessage = error.response?.data?.message ||
+                    error.message ||
+                    'Failed to update event';
+                toast.error(errorMessage);
             } finally {
                 setSubmitting(false);
             }
         }
     });
+
+    // 3. Add debugging to monitor form state changes
+    console.log('📝 Form state:', {
+        isSubmitting: formik.isSubmitting,
+        isValid: formik.isValid,
+        errors: formik.errors,
+        values: formik.values
+    });
+
+    // 4. Add a separate click handler to test if the button click is working
+    const handleTestClick = () => {
+        console.log('🔘 Update button clicked!');
+        console.log('Form is valid:', formik.isValid);
+        console.log('Form errors:', formik.errors);
+        console.log('Submitting state:', submitting);
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -132,8 +198,8 @@ const EventEditForm = () => {
                 formik.setValues({
                     title: eventData.title || '',
                     description: eventData.description || '',
-                    startTime: eventData.startTime ? eventData.startTime.slice(0, 16) : '',
-                    endTime: eventData.endTime ? eventData.endTime.slice(0, 16) : '',
+                    startTime: formatDateTimeLocal(eventData.startTime),
+                    endTime: formatDateTimeLocal(eventData.endTime),
                     categoryId: eventData.categoryId || '',
                     location: eventData.location || '',
                     venueId: eventData.venueId || '',
@@ -548,5 +614,7 @@ const EventEditForm = () => {
         </div>
     );
 };
+
+
 
 export default EventEditForm;
