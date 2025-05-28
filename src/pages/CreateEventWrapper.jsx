@@ -8,7 +8,9 @@ const CreateEventWrapper = () => {
     console.log("Mounting Create Event page");
 
     return (
-        <CreateEventPage />
+        <div className="pt-16">
+            <CreateEventPage />
+        </div>
     );
 };
 

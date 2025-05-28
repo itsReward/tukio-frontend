@@ -5,7 +5,7 @@ import AdminVenuesPage from '../components/venues/AdminVenuesPage';
 
 const AdminVenuesPageWrapper = () => {
     return (
-        <>
+        <div className="pt-16">
             <Helmet>
                 <title>Venue Management | Tukio Admin</title>
                 <meta
@@ -15,7 +15,7 @@ const AdminVenuesPageWrapper = () => {
             </Helmet>
 
             <AdminVenuesPage />
-        </>
+        </div>
     );
 };
 

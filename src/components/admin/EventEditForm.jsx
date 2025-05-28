@@ -39,35 +39,44 @@ const EventEditForm = () => {
     // Validation schema
     const validationSchema = Yup.object({
         title: Yup.string()
-            .min(3, 'Title must be at least 3 characters')
-            .max(100, 'Title must be less than 100 characters')
+            .min(5, 'Title must be at least 5 characters')
+            .max(100, 'Title must not exceed 100 characters')
             .required('Title is required'),
         description: Yup.string()
-            .min(10, 'Description must be at least 10 characters')
-            .max(2000, 'Description must be less than 2000 characters')
+            .min(20, 'Description must be at least 20 characters')
+            .max(2000, 'Description must not exceed 2000 characters')
             .required('Description is required'),
-        startTime: Yup.date()
-            .min(new Date(), 'Start time must be in the future')
-            .required('Start time is required'),
-        endTime: Yup.date()
-            .min(Yup.ref('startTime'), 'End time must be after start time')
-            .required('End time is required'),
         categoryId: Yup.number()
-            .positive('Please select a category')
             .required('Category is required'),
-        maxParticipants: Yup.number()
-            .min(1, 'Must allow at least 1 participant')
-            .max(10000, 'Too many participants')
-            .required('Maximum participants is required'),
+        startDate: Yup.date()
+            .min(new Date(), 'Start date cannot be in the past')
+            .required('Start date is required'),
+        startTime: Yup.string()
+            .required('Start time is required'),
+        endDate: Yup.date()
+            .test('is-after-start', 'End date cannot be before start date', function(value) {
+                const { startDate } = this.parent;
+                if (!startDate || !value) return true;
+                return new Date(value) >= new Date(startDate);
+            })
+            .required('End date is required'),
+        endTime: Yup.string()
+            .required('End time is required'),
+        location: Yup.string()
+            .required('Location is required'),
         organizer: Yup.string()
-            .min(2, 'Organizer name must be at least 2 characters')
-            .required('Organizer is required'),
-        location: Yup.string().when('venueId', {
-            is: (venueId) => !venueId,
-            then: Yup.string().required('Either location or venue is required'),
-            otherwise: Yup.string()
-        }),
-        imageUrl: Yup.string().url('Must be a valid URL')
+            .required('Organizer name is required')
+            .max(100, 'Organizer name must not exceed 100 characters'),
+        venueId: Yup.number().nullable(),
+        maxParticipants: Yup.number()
+            .min(1, 'At least 1 participant is required')
+            .required('Maximum participants is required'),
+        imageUrl: Yup.string()
+            .url('Must be a valid URL')
+            .nullable(),
+        tags: Yup.array()
+            .of(Yup.string())
+            .min(1, 'At least one tag is required'),
     });
 
     // Initialize formik

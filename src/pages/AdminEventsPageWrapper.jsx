@@ -7,7 +7,11 @@ import AdminEventsPage from '../components/admin/AdminEventsPage';
  * This allows us to keep the page logic separate from routing
  */
 const AdminEventsPageWrapper = () => {
-    return <AdminEventsPage />;
+    return (
+        <div className="pt-16">
+            <AdminEventsPage />
+        </div>
+    );
 };
 
 export default AdminEventsPageWrapper;

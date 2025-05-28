@@ -2,11 +2,16 @@
 import React from 'react';
 import AdminDashboardPage from './AdminDashboardPage';
 
+
 /**
  * Wrapper component for the Admin Dashboard Page
  */
 const AdminDashboardPageWrapper = () => {
-    return <AdminDashboardPage />;
+    return (
+        <div className="pt-16">
+            <AdminDashboardPage />
+        </div>
+    );
 };
 
 export default AdminDashboardPageWrapper;

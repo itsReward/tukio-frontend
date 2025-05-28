@@ -9,7 +9,7 @@ import AdminUsersPage from '../components/admin/AdminUsersPage';
  */
 const AdminUsersPageWrapper = () => {
     return (
-        <>
+        <div className="pt-16">
             <Helmet>
                 <title>User Management | Tukio Admin</title>
                 <meta
@@ -19,7 +19,7 @@ const AdminUsersPageWrapper = () => {
             </Helmet>
 
             <AdminUsersPage />
-        </>
+        </div>
     );
 };
 

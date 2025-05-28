@@ -9,7 +9,7 @@ import EventEditForm from '../components/admin/EventEditForm';
  */
 const EventEditFormPage = () => {
     return (
-        <>
+        <div className="pt-16">
             <Helmet>
                 <title>Edit Event | Tukio Admin</title>
                 <meta
@@ -19,7 +19,7 @@ const EventEditFormPage = () => {
             </Helmet>
 
             <EventEditForm />
-        </>
+        </div>
     );
 };
 
